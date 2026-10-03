@@ -26,17 +26,29 @@
 - **說明**：從歌曲算出的響度、低頻起音、頻譜變化與 8 個頻段的能量包絡（每秒 60 筆、每筆 1 位元組），
   用來讓畫面跟著音樂動。只是包絡數據，無法還原出聲音。
 
-## 角色圖
+## 角色圖（CC BY-NC-SA 4.0）
 
-- **檔案**：`assets/src/claude-girl.webp`，以及由它衍生的 `assets/claude.rgba.gz`（去背、縮放）與 `docs/preview.png` 中她的形象。
-- **說明**：AI 生成的 Claude 擬人二創圖，由本倉庫作者提供。**不在 MIT 授權範圍內**；轉用前請先詢問作者。
+- **檔案**：`assets/src/claude-girl.webp`，以及由它衍生的 `assets/claude.rgba.gz`（去背、縮放）、
+  `docs/preview.png` 與影片中她的所有形象。
+- **作者**：Chih-Kai Wang（[@f0909172434](https://github.com/f0909172434)），以 AI 生成的 Claude 擬人二創圖。
+- **授權**：[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)，全文見
+  [LICENSES/CC-BY-NC-SA-4.0.txt](LICENSES/CC-BY-NC-SA-4.0.txt)。使用時請署名並註明改動、不得商用，
+  改編作品以相同授權分享。此授權不涉及 Claude、Claude Code 的商標權利。
 
-## 字形點陣
+## 字形點陣（SIL OFL 1.1）
 
 - **檔案**：`assets/font.json.gz`
-- **說明**：大字用的字形覆蓋率點陣，以 `tools/bake.py font` 從 macOS 系統字型（SF Mono、Menlo、New York、
-  黑體-繁、宋體-繁）渲染而成。這些字型屬於 Apple，其授權限制字型本身的散布；本檔只含渲染後的低解析度點陣，
-  不含字型檔。若你要把本作另作他用，建議改用開源字型（例如 Noto Sans/Serif TC、JetBrains Mono）重新烘焙。
+- **說明**：大字用的字形覆蓋率點陣，由 `tools/fetch_fonts.sh` 下載、`tools/bake.py font` 渲染。上標 `ᵀ` 由 `T` 縮小上移合成。
+- **字型**（皆為 SIL Open Font License 1.1，取自 [google/fonts](https://github.com/google/fonts)）：
+
+  | 字型 | 版權 | 授權全文 |
+  |---|---|---|
+  | JetBrains Mono | The JetBrains Mono Project Authors | [LICENSES/OFL-jetbrainsmono.txt](LICENSES/OFL-jetbrainsmono.txt) |
+  | Source Serif 4 | The Source Serif 4 Project Authors | [LICENSES/OFL-sourceserif4.txt](LICENSES/OFL-sourceserif4.txt) |
+  | Noto Sans TC / SC | Adobe（Reserved Font Name "Source"） | [LICENSES/OFL-notosanstc.txt](LICENSES/OFL-notosanstc.txt)、[OFL-notosanssc.txt](LICENSES/OFL-notosanssc.txt) |
+  | Noto Serif TC / SC | Google Inc. | [LICENSES/OFL-notoseriftc.txt](LICENSES/OFL-notoseriftc.txt)、[OFL-notoserifsc.txt](LICENSES/OFL-notoserifsc.txt) |
+
+- 這份點陣是上述字型的衍生版本，依 OFL 1.1 以相同授權提供，不使用其保留字型名稱。
 
 ## 商標與聲明
 

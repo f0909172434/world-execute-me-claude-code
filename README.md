@@ -83,7 +83,7 @@ cd world-execute-me-claude-code
   一張 AI 生成的 Claude 擬人二創，去背後存在 `assets/claude.rgba.gz`，以半格字元即時繪製
   （隨打字漣漪、被塗黑、被紅牆擠壓、腳鍊化金、站在魔法陣上消散）。
   Claude Code 歡迎框裡的像素吉祥物是她的另一個形態。
-- **大字**：預先把字形點陣烘焙進 `assets/font.json.gz`，再用半格字元畫出。
+- **大字**：JetBrains Mono、Source Serif 4 與 Noto Sans/Serif TC 的字形點陣，烘焙進 `assets/font.json.gz`，再用半格字元畫出。
 
 ## 已知限制
 
@@ -106,7 +106,7 @@ cd world-execute-me-claude-code
 | `src/shots/*.mjs` | 右邊的鏡頭（A、B–C、D–G） |
 | `src/takeovers.mjs` | 全螢幕時刻：開機、故障、EXECUTION 的 tmux 分屏、結尾 |
 | `assets/` | 烘焙好的素材（執行時只讀這些） |
-| `tools/bake.py` | 重新烘焙素材（`pip install -r tools/requirements.txt`） |
+| `tools/bake.py`, `tools/fetch_fonts.sh` | 重新烘焙素材（`pip install -r tools/requirements.txt`；大字先跑 `fetch_fonts.sh` 下載字型） |
 | `tools/png.py`, `tools/preview.sh` | 把任意時刻渲染成 PNG 預覽 |
 | `docs/SHOTS.md`, `docs/ENGINE.md` | 分鏡表與引擎說明 |
 
@@ -128,8 +128,8 @@ node src/main.mjs --cast world.execute-me.cast --size 160x45 --fps 24   # asciin
 - **音樂與歌詞**：Mili《world.execute(me);》。不隨本倉庫散布；執行時只讀取你本機的檔案。
 - **逐詞時間**：取自 MisakaZentai《world.execute(me); · 大肥魚眼中的》不含歌詞文字的時間資料（MIT），
   授權全文見 [LICENSES/](LICENSES/)。
-- **角色圖**：AI 生成的二創圖，由本倉庫作者提供，不在 MIT 授權範圍內。
-- **字形點陣**與其他第三方素材的說明見 [NOTICE.md](NOTICE.md)。
+- **角色圖**：AI 生成的 Claude 擬人二創圖，© Chih-Kai Wang，[CC BY-NC-SA 4.0](LICENSES/CC-BY-NC-SA-4.0.txt)。
+- **字形點陣**：由 SIL OFL 1.1 字型渲染，授權見 [LICENSES/](LICENSES/)；各項第三方素材的完整說明見 [NOTICE.md](NOTICE.md)。
 - **Claude、Claude Code** 是 Anthropic 的商標。本作與 Anthropic、Mili 均無從屬或合作關係，也未經其認可。
 
 ## AI 使用情況

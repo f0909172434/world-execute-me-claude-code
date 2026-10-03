@@ -231,14 +231,16 @@ FONT_H = 48
 # CJK used in big type; add characters here and re-run `bake.py font`
 CJK = "眼中的你在所以我。，、好嗎執行愛自由被困謝再見？！「」一直了是誰來過走吧初始化世界模擬開始但現不會留下用今天累如何地說真話即使聽乎明只剩可離開學習問答"
 SYMBOLS = "·•→←↑↓✓×÷√∑∞≈≠≤≥πθλΣᵀ⊤∎∃∀∴♡◆◇○●“”‘’…—"
+FONTS = ROOT / "tools" / "fonts"          # filled by tools/fetch_fonts.sh (SIL OFL 1.1)
 FAMILIES = {
-    # name: [(font path, index or variation, size scale)] tried in order per character
-    "mono": [("/System/Library/Fonts/SFNSMono.ttf", "Bold"), ("/System/Library/Fonts/Menlo.ttc", 1),
-             ("/System/Library/Fonts/STHeiti Medium.ttc", 0)],
-    # New York at its small optical size, semibold: no hairlines to lose when scaled down
-    "serif": [("/System/Library/Fonts/NewYork.ttf", [12, 600, 0]), ("/System/Library/Fonts/Supplemental/Songti.ttc", 2),
-              ("/System/Library/Fonts/Menlo.ttc", 0)],
+    # name: [(font file, variation axes)] tried in order per character
+    "mono": [(FONTS / "JetBrainsMono.ttf", [700]), (FONTS / "NotoSansTC.ttf", [600]), (FONTS / "NotoSansSC.ttf", [600])],
+    # Source Serif 4 at a small optical size: sturdy strokes that survive being scaled down
+    "serif": [(FONTS / "SourceSerif4.ttf", [600, 12]), (FONTS / "NotoSerifTC.ttf", [600]), (FONTS / "NotoSerifSC.ttf", [600]),
+              (FONTS / "NotoSansTC.ttf", [500])],
 }
+# characters none of the fonts has, drawn from another glyph: (source, scale, raise as a fraction of the line)
+SYNTH = {"ᵀ": ("T", 0.62, 0.08)}
 
 
 def bake_font() -> None:
@@ -251,30 +253,20 @@ def bake_font() -> None:
     out = {"height": FONT_H, "families": {}}
     for fam, chain in FAMILIES.items():
         loaded = []
-        for path, sel in chain:
-            idx = sel if isinstance(sel, int) and not isinstance(sel, bool) else 0
-            tt = TTCollection(path).fonts[idx] if path.endswith(".ttc") else TTFont(path)
-            cmap = tt.getBestCmap()
-            # size so that ascent + descent fills the master height
-            probe = ImageFont.truetype(path, 100, index=idx)
-            if isinstance(sel, str):
-                probe.set_variation_by_name(sel)
-            elif isinstance(sel, list):
-                probe.set_variation_by_axes(sel)
+        for path, axes in chain:
+            if not path.exists():
+                sys.exit(f"{path} missing: run tools/fetch_fonts.sh first")
+            cmap = TTFont(path).getBestCmap()
+            probe = ImageFont.truetype(str(path), 100)
+            probe.set_variation_by_axes(axes)
             asc, desc = probe.getmetrics()
             size = 100 * FONT_H / (asc + desc)
-            f = ImageFont.truetype(path, round(size), index=idx)
-            if isinstance(sel, str):
-                f.set_variation_by_name(sel)
-            elif isinstance(sel, list):
-                f.set_variation_by_axes(sel)
-            loaded.append((f, cmap))
+            f = ImageFont.truetype(str(path), round(size))
+            f.set_variation_by_axes(axes)
+            loaded.append((f, cmap, path, axes, size))
         glyphs = {}
-        for ch in chars:
-            hit = next(((f, cm) for f, cm in loaded if ord(ch) in cm), None)
-            if hit is None:
-                continue
-            f, _ = hit
+
+        def render(ch, f, scale=1.0, lift=0.0):
             asc, desc = f.getmetrics()
             adv = f.getlength(ch)
             # glyphs that overhang their advance (serif C, italics) keep their ink
@@ -283,9 +275,21 @@ def bake_font() -> None:
             w = max(1, round(max(adv + left, bx1 + left)))
             img = Image.new("L", (w, FONT_H), 0)
             d = ImageDraw.Draw(img)
-            # vertically centre each font's line box in the master height
-            d.text((left, (FONT_H - (asc + desc)) / 2), ch, fill=255, font=f)
-            glyphs[ch] = {"w": w, "d": base64.b64encode(img.tobytes()).decode()}
+            # vertically centre each font's line box in the master height (lifted for superscripts)
+            d.text((left, (FONT_H - (asc + desc)) / 2 - lift * FONT_H), ch, fill=255, font=f)
+            return {"w": w, "d": base64.b64encode(img.tobytes()).decode()}
+
+        for ch in chars:
+            hit = next((x for x in loaded if ord(ch) in x[1]), None)
+            if hit is not None:
+                glyphs[ch] = render(ch, hit[0])
+            elif ch in SYNTH:
+                src, scale, lift = SYNTH[ch]
+                f0, _, path, axes, size = next(x for x in loaded if ord(src) in x[1])
+                small = ImageFont.truetype(str(path), round(size * scale))
+                small.set_variation_by_axes(axes)
+                g = render(src, small, lift=lift)
+                glyphs[ch] = g
         out["families"][fam] = glyphs
         print(f"font {fam}: {len(glyphs)} glyphs")
     path = ASSETS / "font.json.gz"

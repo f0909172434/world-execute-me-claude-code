@@ -22,6 +22,7 @@ SOFTWARE.
 
 This licence covers the code in this repository (the .mjs, .py and .sh files
 and the play launcher). It does not cover the material listed in NOTICE.md,
-which keeps its own terms: the character artwork, the word timing data derived
-from MisakaZentai/world-execute-me-dsh-pv (MIT, see LICENSES/), and the
-big-type glyph atlas. The song and its lyrics are not part of this repository.
+which keeps its own terms: the character artwork (CC BY-NC-SA 4.0), the word
+timing data derived from MisakaZentai/world-execute-me-dsh-pv (MIT), and the
+big-type glyph atlas rendered from SIL OFL 1.1 fonts (see LICENSES/). The song
+and its lyrics are not part of this repository.
