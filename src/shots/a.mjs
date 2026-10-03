@@ -874,9 +874,16 @@ function trainShot(film, a, b) {
       const yy = Math.floor(sweep * ph);
       for (let x = 0; x < pw; x++) px.set(x, yy, P.goldHi, 0.85);
     }
-    // fully denoised, she is drawn in the terminal's finest cells
-    if (stepsDone === SIGMA.length - 1 && sweep >= 1) img.draw(s, xp, yp, pw, pRows, { crop: FULL });
-    else px.blit(s, xp, yp);
+    px.blit(s, xp, yp);
+    // fully denoised (above the last refresh line), she is drawn in the terminal's finest cells
+    if (stepsDone === SIGMA.length - 1) {
+      const done = sweep >= 1 ? pRows : Math.floor(Math.floor(sweep * ph) / 2);
+      if (done > 0) {
+        s.pushClip(xp, yp, pCols, done);
+        img.draw(s, xp, yp, pw, pRows, { crop: FULL });
+        s.popClip();
+      }
+    }
     const bcol = mix(P.line, P.goldHi, flash * 0.9);
     box(s, xp - 1, yp - 1, pCols + 2, pRows + 2, bcol);
     const sigNow = stepsDone ? lerp(SIGMA[oldL], SIGMA[newL], sweep) : 1;
