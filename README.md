@@ -5,6 +5,8 @@
 
 ![preview](docs/preview.png)
 
+**影片**：[YouTube](https://youtu.be/oS9zZLG8rk8) · [Bilibili](https://www.bilibili.com/video/BV1KiHe6AERT)（《world.executed(me) · 但我現在在。》）
+
 - 左邊是她的 Claude Code 會話——歡迎框、`⏺` 工具呼叫、`⎿` 結果、spinner、權限對話框、`/rewind`、上下文壓縮；
 - 右邊是執行著她的那個世界——訓練、嵌入、RoPE、獎勵模型、記憶、沙箱、注意力；
 - 底部是歌詞條：每個詞在唱到時打出來，下面是它的 token id；
