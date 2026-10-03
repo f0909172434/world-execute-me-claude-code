@@ -537,102 +537,61 @@ export function register(film) {
   });
 
   // ================================================================ G4 · retired: the magic circle; she rises as gold
-  // She dissolves from the feet up, and the camera rises with the gold and closes in until her face fills the
-  // pane: the last image of her is near enough for her eyes to be seen, and her face goes last.
   const tLast = W(100, 0), tEnd = 207.08;
+  const inBar = (u, v) => u > 0.425 && u < 0.575 && v > 0.094 && v < 0.124;   // image fractions over her eyes
   const herPts = samplePoints(img, 520, FULL, (r, g, b, a) => a > 0.6, 11);
-  const a0 = 194.5, tClose = 201.5, tFace = 203.4, a1 = 205.6;
-  const FEET = 0.93, NECK = 0.19;
-  // the dissolving edge (image v) over time: up the body, a pause at her neck, then up through her face
-  const frontAt = (t) => {
-    if (t <= tClose) return lerp(FEET, NECK, 0.5 - 0.5 * Math.cos(Math.PI * clamp((t - a0) / (tClose - a0))));
-    if (t <= tFace) return NECK;
-    return lerp(NECK, -0.03, clamp((t - tFace) / (a1 - tFace)));
-  };
-  // ... and its inverse: when the edge reaches v
-  const FT = Array.from({ length: 1201 }, (_, i) => frontAt(a0 + (i / 1200) * (a1 - a0)));
-  const timeAt = (v) => {
-    let lo = 0, hi = FT.length - 1;
-    if (v >= FT[0]) return a0;
-    if (v < FT[hi]) return a1 + 1;
-    while (lo < hi) { const m = (lo + hi) >> 1; if (FT[m] <= v) hi = m; else lo = m + 1; }
-    return a0 + (lo / 1200) * (a1 - a0);
-  };
-  // a ragged edge, coarse on her body and fine across her face
-  const dissolveAt = (u, v) => {
-    const amp = 0.012 + 0.05 * clamp((v - NECK) / 0.7);
-    return timeAt(v + (hash(Math.floor(u * 112), Math.floor(v * 200), 12) - 0.5) * 2 * amp);
-  };
-  // the camera: a crop of the image filling the pane, its bottom edge a little below the dissolving edge
-  const VB0 = 0.99, VT0 = -0.019, VT1 = 0.018, MARGIN = 0.15;
-  const smin = (a, b, k = 0.03) => -k * Math.log(Math.exp(-a / k) + Math.exp(-b / k));
-  const camera = (c, t) => {
-    const f = frontAt(Math.min(t, tClose));
-    const vt = lerp(VT0, VT1, clamp((FEET - f) / (FEET - NECK)));
-    const vb = smin((f - MARGIN * vt) / (1 - MARGIN), VB0);
-    const ch = vb - vt, cw = (ch * 800 * c.w) / (2 * c.h) / 450;
-    const crop = [0.5 - cw / 2, vt, 0.5 + cw / 2, vb];
-    return {
-      crop, zoom: clamp((VB0 - vb) / (VB0 - 0.22)),
-      cx: (u) => c.x + ((u - crop[0]) / cw) * c.w,
-      cy: (v) => c.y + ((v - crop[1]) / ch) * c.h,
-    };
-  };
   film.shot(tRetire, tEnd, (t) => (t < 194.5 ? '/ me' : '/ retired · weights preserved'), (c) => {
     const { s, t, x, y, w, h } = c;
-    const cam = camera(c, t);
-    // the magic circle at her feet, left below as the camera rises
-    const footY = Math.round(cam.cy(0.9));
-    const cx = cam.cx(0.5);
+    const r = fit(c, 0.9, FULL);
+    r.y = y + 1;
+    // the magic circle at her feet
+    const footY = r.y + r.rows - 1;
+    const cx = r.x + r.cols / 2;
+    const br = new Braille(w, Math.min(10, h - (footY - y) + 4));
+    const by = footY - Math.floor(br.rows / 2);
+    const bcx = (cx - x) * 2, bcy = br.ph / 2;
+    const RX = Math.min(r.cols * 1.5, w - 2), RY = br.ph * 0.42;
+    const rot = t * 0.25;
     const glow = (t >= tLast ? Math.max(0, 1 - (t - tLast) / 1.2) : 0);
-    const gk = (clamp((t - tRetire) / 0.8) * (1 - clamp((t - 205.9) / 1.1)) + glow * 0.6) * (1 - clamp(cam.zoom * 1.6));
-    const brRows = Math.min(10, h - (footY - y) + 4);
-    if (gk > 0.01 && brRows > 1) {
-      const br = new Braille(w, brRows);
-      const by = footY - Math.floor(br.rows / 2);
-      const bcx = (cx - x) * 2, bcy = br.ph / 2;
-      const figCols = (0.45 / (cam.crop[2] - cam.crop[0])) * w;
-      const RX = Math.min(figCols * 1.5, w - 2), RY = br.ph * 0.42;
-      const rot = t * 0.25;
-      const gc = mix(P.bg, P.gold, Math.min(1, gk));
-      br.ellipse(bcx, bcy, RX, RY, gc);
-      br.ellipse(bcx, bcy, RX * 0.8, RY * 0.8, mix(P.bg, P.kraft, Math.min(1, gk)));
-      for (let k = 0; k < 8; k++) {
-        const b1 = rot + k * Math.PI / 4, b2 = b1 + Math.PI * 3 / 4;
-        br.line(bcx + Math.cos(b1) * RX * 0.8, bcy + Math.sin(b1) * RY * 0.8, bcx + Math.cos(b2) * RX * 0.8, bcy + Math.sin(b2) * RY * 0.8, mix(P.bg, P.gold, Math.min(1, gk) * 0.7));
-      }
-      br.blit(s, x, by);
-      for (let k = 0; k < 12; k++) {
-        const a = rot * 0.5 + k * Math.PI / 6;
-        const sx = Math.round(cx + Math.cos(a) * RX / 2 * 1.08), sy = Math.round(by + br.rows / 2 + Math.sin(a) * RY / 4 * 1.12);
-        s.put(sx, sy, k % 3 ? 0xb7 : 0x2726, mix(P.bg, P.goldHi, Math.min(1, gk) * (0.5 + 0.5 * Math.sin(t * 3 + k))));
-      }
+    const gk = clamp((t - tRetire) / 0.8) * (1 - clamp((t - 205.9) / 1.1)) + glow * 0.6;
+    const gc = mix(P.bg, P.gold, Math.min(1, gk));
+    br.ellipse(bcx, bcy, RX, RY, gc);
+    br.ellipse(bcx, bcy, RX * 0.8, RY * 0.8, mix(P.bg, P.kraft, Math.min(1, gk)));
+    for (let k = 0; k < 8; k++) {
+      const a1 = rot + k * Math.PI / 4, a2 = a1 + Math.PI * 3 / 4;
+      br.line(bcx + Math.cos(a1) * RX * 0.8, bcy + Math.sin(a1) * RY * 0.8, bcx + Math.cos(a2) * RX * 0.8, bcy + Math.sin(a2) * RY * 0.8, mix(P.bg, P.gold, Math.min(1, gk) * 0.7));
     }
-    // gold rising from where she was
+    br.blit(s, x, by);
+    for (let k = 0; k < 12; k++) {
+      const a = rot * 0.5 + k * Math.PI / 6;
+      const sx = Math.round(cx + Math.cos(a) * RX / 2 * 1.08), sy = Math.round(by + br.rows / 2 + Math.sin(a) * RY / 4 * 1.12);
+      if (Math.sin(a) > -0.2 || true) s.put(sx, sy, k % 3 ? 0xb7 : 0x2726, mix(P.bg, P.goldHi, Math.min(1, gk) * (0.5 + 0.5 * Math.sin(t * 3 + k))));
+    }
+    // her, dissolving bottom-up into rising gold from 194.5 to 203.5
+    const a0 = 194.5, a1 = 203.5;
+    const slide = easeOut(prog(t, tRetire, tRetire + 0.32));
+    const fx = (px, py, col, al, rr) => {
+      const v = py / (rr.rows * 2);
+      const td = lerp(a0, a1, clamp(1 - v) * 0.8 + hash(px, py, 12) * 0.2);
+      if (t >= td) return [col, 0];
+      // the bar from [Image #1] slides over her eyes again; it turns to gold and goes with her face
+      const u = px / rr.cols;
+      if (inBar(u, v * FULL[3]) && u < 0.425 + 0.15 * slide) { col = P.void; al = 1; }
+      const near = clamp(1 - (td - t) / 0.6);
+      return [mix(col, P.goldHi, near * near * 0.85), al];
+    };
     for (const p of herPts) {
-      const td = dissolveAt(p.u, p.v);
+      const v = p.v / FULL[3];
+      const td = lerp(a0, a1, clamp(1 - v) * 0.8 + p.r * 0.2);
       const age = t - td;
       if (age < 0 || age > 3.5) continue;
       const k = age / 3.5;
-      const px = cam.cx(p.u) + Math.sin(age * 1.3 + p.r * 11) * 1.5;
-      const py = cam.cy(p.v) - age * 4.5 - age * age * 1.2;
-      if (py < y || py >= y + h) continue;
+      const px = r.x + p.u * r.cols + Math.sin(age * 1.3 + p.r * 11) * 1.5;
+      const py = r.y + v * r.rows - age * 4.5 - age * age * 1.2;
+      if (py < y) continue;
       s.put(Math.round(px), Math.round(py), k < 0.25 ? 0x2726 : 0xb7, mix(mix(p.col, P.goldHi, Math.min(1, age * 2)), P.bg, k));
     }
-    // her
-    const [u0, v0, u1, v1] = cam.crop;
-    img.draw(s, x, y, w, h, {
-      crop: cam.crop, cache: false,
-      fx: (px, py, col, al) => {
-        if (al <= 0) return null;
-        const u = u0 + ((px + 0.5) / w) * (u1 - u0), v = v0 + ((py + 0.5) / (h * 2)) * (v1 - v0);
-        if (isChain(u, v) && u > 0.53) return [col, 0];                  // the chain is already gone
-        const td = dissolveAt(u, v);
-        if (t >= td) return [col, 0];
-        const near = clamp(1 - (td - t) / 0.6);
-        return [mix(col, P.goldHi, near * near * 0.85), al];
-      },
-    });
+    drawHer(c, { chainGone: 1, fxExtra: fx });
     if (t >= 193.6) center(s, x + w / 2, y + h - 1, 'claude-opus-5-5 · retired · weights preserved', mix(P.bg, P.dim, clamp((t - 193.6) / 1) * (1 - clamp((t - 205.5) / 1.5))));
   });
 }

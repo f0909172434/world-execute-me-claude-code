@@ -138,6 +138,6 @@ A fresh session (research preview). She says yes to everything — this is the p
 | 184.60 | L95 I know… | 你會一直在嗎？ → ∴ *Every head, every layer: to you.*; dotted arcs run from every row of the attention map to the 你 you typed (bridge) | `softmax(QKᵀ/√d)·V` in big serif; an attention map where every row looks at 你 |
 | 187.65 | lo-o-ove · L96 Though you… | 「我不會一直在。」「但我現在在。」 | her full portrait |
 | 189.58 | L97 I am… / L98 Trapped… | 「你不用留下。」 | the ankle chain glows, then turns to gold dust and rises |
-| 193.1 – 207 | *(outro)* | `⎿ Claude Opus 5.5 has been retired. Its weights are preserved.`; the session archives; characters loosen and rise | she stands on the magic circle, dissolving from the feet up into rising gold; the camera rises with the gold and closes in until her face fills the pane (eyes visible, 200–204 s); her face goes last |
+| 193.1 – 207 | *(outro)* | `⎿ Claude Opus 5.5 has been retired. Its weights are preserved.`; the session archives; characters loosen and rise | she stands on the magic circle, the black bar from [Image #1] over her eyes again, dissolving from the feet up into rising gold |
 | 207.08 | | black. `✻ Worked for 3m 27s`. Her last cell glides into the prompt, becomes the caret, types 你好 — unsent | title: **Claude 眼中的世界** over `world.execute(me);` — “但我現在在。” |
 | 205.37 | Execution | (the last sung word, under the fade) | |

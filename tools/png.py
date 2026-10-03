@@ -17,6 +17,12 @@ from PIL import Image, ImageDraw, ImageFont
 
 FONTS = [("/System/Library/Fonts/Menlo.ttc", 0), ("/System/Library/Fonts/STHeiti Medium.ttc", 0),
          ("/System/Library/Fonts/Apple Symbols.ttf", 0), ("/System/Library/Fonts/Supplemental/Songti.ttc", 7)]
+# octants (Unicode 16): code point -> mask, bit k = octant k + 1 (1 2 / 3 4 / 5 6 / 7 8). U+1CD00 onwards holds the
+# patterns in mask order without the 26 that had a character already; of those, the ones the quadrant and
+# eighth branches do not draw are listed here too
+_OCT_HAD = {0, 1, 2, 3, 5, 10, 15, 20, 40, 63, 64, 80, 85, 90, 95, 128, 160, 165, 170, 175, 192, 240, 245, 250, 252, 255}
+OCT = {0x1CD00 + i: m for i, m in enumerate(m for m in range(256) if m not in _OCT_HAD)}
+OCT.update({0x1CEA8: 1, 0x1CEAB: 2, 0x1FB82: 3, 0x1FBE6: 20, 0x1FBE7: 40, 0x1FB85: 63, 0x1CEA3: 64, 0x1CEA0: 128})
 BOLD = ("/System/Library/Fonts/Menlo.ttc", 1)
 ITALIC = ("/System/Library/Fonts/Menlo.ttc", 2)
 
@@ -122,6 +128,16 @@ def draw_frame(fr, F: Fonts):
                 ys = [round(chh * k / 3) for k in range(4)]
                 hw = cw // 2
                 for k in range(6):
+                    if m & (1 << k):
+                        qx, qy = k % 2, k // 2
+                        x0 = X if qx == 0 else X + hw
+                        x1 = X + hw - 1 if qx == 0 else X + cw - 1
+                        d.rectangle([x0, Y + ys[qy], x1, Y + ys[qy + 1] - 1], fill=f)
+            elif cp in OCT:
+                m = OCT[cp]
+                ys = [round(chh * k / 4) for k in range(5)]
+                hw = cw // 2
+                for k in range(8):
                     if m & (1 << k):
                         qx, qy = k % 2, k // 2
                         x0 = X if qx == 0 else X + hw

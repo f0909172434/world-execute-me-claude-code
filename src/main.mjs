@@ -23,7 +23,8 @@ usage: node src/main.mjs [options]        (or ./play)
   --offset MS       shift the picture against the sound (+ = picture later)
   --player NAME     afplay | ffplay | mpv
   --256             256-colour mode (terminals without truecolor)
-  --mosaic M        big type in half | quad | sext cells (default: sext where the terminal draws sextants, else quad)
+  --mosaic M        big type and pictures in half | quad | sext | oct cells (default: sext where the terminal
+                    draws sextants, else quad; videos and snapshots use oct)
   --hans            简体中文 dialogue (default: 繁體)
   --fetch-lyrics    download the synced lyrics the film is timed on (LRCLIB entry 36914646)
                     to world.execute(me).lrc; an existing file is never replaced
@@ -77,8 +78,8 @@ function terminalMosaic() {
 
 export function makeFilm(opts = {}) {
   if (opts.hans) setCharMap(loadHans());
-  // offline output (snapshots, video frames) is drawn by our own rasterisers, which draw sextants
-  setMosaic(opts.mosaic ?? (opts.terminal ? terminalMosaic() : 'sext'));
+  // offline output (snapshots, video frames) is drawn by our own rasterisers, which draw octants
+  setMosaic(opts.mosaic ?? (opts.terminal ? terminalMosaic() : 'oct'));
   const lrc = opts.lrc ?? findFile(LRC_NAMES);
   const lyrics = loadLyrics(lrc);
   const film = new Film({ lyrics, features: loadFeatures(), portrait: loadPortrait(), fonts: loadFonts() });
@@ -291,7 +292,8 @@ function frames(args) {
 // ---------------------------------------------------------------- bench
 
 function bench(args) {
-  const { film } = makeFilm(args);
+  // timed the way a terminal plays it: sextants are the heaviest mode a terminal is given
+  const { film } = makeFilm({ ...args, mosaic: args.mosaic ?? 'sext' });
   const [w, h] = (args.size ?? '160x45').split('x').map(Number);
   const [a, b] = (args.bench === true ? '0-212' : args.bench).split('-').map(Number);
   const s = new Screen(w, h);

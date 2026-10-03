@@ -312,13 +312,14 @@ export class Img {
   }
 
   /**
-   * draw() in 2×3 samples per cell (sextants, or quadrants where the terminal has no sextants): each cell's
-   * samples are split into the two groups of colour that lose the least, which become its ink and paper.
-   * Lines a sample wide (eyes, strands of hair) survive that half-blocks would blur. fx gets half-block
+   * draw() in 2×3 samples per cell (2×4 in octant mode; sextants, or quadrants where the terminal has neither):
+   * each cell's samples are split into the two groups of colour that lose the least, which become its ink and
+   * paper. Lines a sample wide (eyes, strands of hair) survive that half-blocks would blur. fx gets half-block
    * coordinates, as in draw().
    */
   drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0, cache = true } = {}) {
-    const { c, a } = this.crisp(cols * 2, rows * 3, ...crop, cache);
+    const sub = MOSAIC === 'oct' ? 4 : 3, n = 2 * sub;
+    const { c, a } = this.crisp(cols * 2, rows * sub, ...crop, cache);
     const pw = cols * 2;
     const R = S6R, G = S6G, B = S6B;
     for (let r = 0; r < rows; r++) {
@@ -328,16 +329,16 @@ export class Img {
         if (!s.in(sx, sy)) continue;
         const under = s.bg[sy * s.w + sx];
         let seen = 0;
-        for (let k = 0; k < 6; k++) {
-          const px = col * 2 + (k & 1), py = r * 3 + (k >> 1), i = py * pw + px;
+        for (let k = 0; k < n; k++) {
+          const px = col * 2 + (k & 1), py = r * sub + (k >> 1), i = py * pw + px;
           let cc = c[i], al = a[i] * alpha;
           if (tintK > 0) cc = mix(cc, tint, tintK);
-          if (fx) { const f = fx(col, Math.floor((py * 2) / 3), cc, al); if (f) { cc = f[0]; al = f[1]; } }
+          if (fx) { const f = fx(col, Math.floor((py * 2) / sub), cc, al); if (f) { cc = f[0]; al = f[1]; } }
           if (al > 0.04) seen++;
           const m = al >= 0.98 ? cc : mix(under, cc, Math.max(0, Math.min(1, al)));
           R[k] = (m >> 16) & 255; G[k] = (m >> 8) & 255; B[k] = m & 255;
         }
-        if (seen) putCell6(s, sx, sy, R, G, B);
+        if (seen) putCell(s, sx, sy, R, G, B, n);
       }
     }
   }
@@ -350,14 +351,14 @@ export class Img {
  * draw() scales a string to `ph` half-block pixels high.
  */
 // ---------------------------------------------------------------- mosaic cells for big type
-// How big type is cut into character cells. 'half': ▀▄ halves, two independent colours (1×2 per cell).
-// 'quad': quadrant blocks (2×2). 'sext': sextants from Symbols for Legacy Computing (2×3), the finest a
-// terminal can draw solidly. quad and sext keep two colours per cell: the inked sub-cells take the mean
-// coverage of the ink, the rest the mean of what is left, so edges still fade.
+// How big type and pictures are cut into character cells. 'half': ▀▄ halves, two independent colours (1×2 per
+// cell). 'quad': quadrant blocks (2×2). 'sext': sextants from Symbols for Legacy Computing (2×3). 'oct':
+// octants from its Unicode 16 supplement (2×4), the finest block a terminal can draw; the videos use them.
+// Every mode but half keeps two colours per cell.
 let MOSAIC = 'half';
 export function setMosaic(m) { MOSAIC = m; }
 export const mosaic = () => MOSAIC;
-const SUB = { half: [1, 2], quad: [2, 2], sext: [2, 3] };
+const SUB = { half: [1, 2], quad: [2, 2], sext: [2, 3], oct: [2, 4] };
 // a sub-cell is inked from this much coverage on (sextant big type)
 const INK = 0.42;
 // quadrant mask (tl 1, tr 2, bl 4, br 8) -> code point
@@ -367,16 +368,18 @@ const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2
  * mode it becomes a sextant with two colours; terminals without sextants get quadrants or half-blocks made
  * from the same samples.
  */
-export function putCell6(s, x, y, R, G, B) {
-  if (MOSAIC === 'half') {
+export const putCell6 = (s, x, y, R, G, B) => putCell(s, x, y, R, G, B, 6);
+/** putCell6 for n = 6 samples (2×3), or n = 8 (2×4, drawn as an octant; only in 'oct' mode). */
+export function putCell(s, x, y, R, G, B, n) {
+  const mode = MOSAIC === 'oct' && n === 6 ? 'sext' : MOSAIC;
+  if (mode === 'half') {
     // top: the top row and half the middle row; bottom: the bottom row and the other half
     const top = rgbOf((2 * (R[0] + R[1]) + R[2] + R[3]) / 6, (2 * (G[0] + G[1]) + G[2] + G[3]) / 6, (2 * (B[0] + B[1]) + B[2] + B[3]) / 6);
     const bot = rgbOf((2 * (R[4] + R[5]) + R[2] + R[3]) / 6, (2 * (G[4] + G[5]) + G[2] + G[3]) / 6, (2 * (B[4] + B[5]) + B[2] + B[3]) / 6);
     if (top === bot) s.put(x, y, 0x2588, top, top); else s.put(x, y, 0x2580, top, bot);
     return;
   }
-  let n = 6;
-  if (MOSAIC === 'quad') {
+  if (mode === 'quad') {
     // each quadrant takes its corner sample and half of the middle row
     n = 4;
     for (let q = 0; q < 4; q++) {
@@ -384,7 +387,7 @@ export function putCell6(s, x, y, R, G, B) {
       CR[q] = (2 * R[a] + R[b]) / 3; CG[q] = (2 * G[a] + G[b]) / 3; CB[q] = (2 * B[a] + B[b]) / 3;
     }
   } else {
-    for (let k = 0; k < 6; k++) { CR[k] = R[k]; CG[k] = G[k]; CB[k] = B[k]; }
+    for (let k = 0; k < n; k++) { CR[k] = R[k]; CG[k] = G[k]; CB[k] = B[k]; }
   }
   // the split into two groups that keeps the most of the cell (least squared error to the group means);
   // the last sub-cell always stays in group 0, so every split is tried once
@@ -405,11 +408,11 @@ export function putCell6(s, x, y, R, G, B) {
   }
   const bg = rgbOf(r0 / (n - n1), g0 / (n - n1), b0 / (n - n1));
   if (!best) { s.put(x, y, 0x2588, bg, bg); return; }
-  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[best] : sextantCp(best), rgbOf(r1 / n1, g1 / n1, b1 / n1), bg);
+  s.put(x, y, mode === 'quad' ? QUAD_CP[best] : n === 8 ? OCT_CP[best] : sextantCp(best), rgbOf(r1 / n1, g1 / n1, b1 / n1), bg);
 }
 const rgbOf = (r, g, b) => (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
-const CR = new Float64Array(6), CG = new Float64Array(6), CB = new Float64Array(6);
-const S6R = new Float32Array(6), S6G = new Float32Array(6), S6B = new Float32Array(6);
+const CR = new Float64Array(8), CG = new Float64Array(8), CB = new Float64Array(8);
+const S6R = new Float32Array(8), S6G = new Float32Array(8), S6B = new Float32Array(8);
 // colour distance weights: green counts most, blue least, roughly as the eye does
 const WR = 0.9, WG = 1.2, WB = 0.6;
 
@@ -445,10 +448,13 @@ export function closeLineGaps(s) {
   const n = s.w * s.h;
   for (let i = 0; i < n; i++) {
     const cp = s.ch[i];
-    if (cp < 0x2580 || (cp > 0x259f && cp < 0x1fb00) || cp > 0x1fb3b || (s.at[i] & INV)) continue;
+    if (cp < 0x2580 || (cp > 0x259f && cp < 0x1cd00) || cp > 0x1fbe7 || (s.at[i] & INV)) continue;
     if (cp === 0x2588) { s.bg[i] = s.fg[i]; continue; }
     let flip;
-    if (cp >= 0x1fb00) {
+    const o = cp > 0x259f ? OCT_MASK.get(cp) : undefined;
+    if (o !== undefined) {
+      if (o & 1) flip = OCT_CP[255 ^ o];
+    } else if (cp >= 0x1fb00 && cp <= 0x1fb3b) {
       const m = sextantMask(cp);
       if (m & 1) flip = sextantCp(63 ^ m);
     } else {
@@ -467,6 +473,20 @@ function sextantMask(cp) {
   const m = cp - 0x1fb00 + 1;
   return m + (m >= 21 ? 1 : 0) + (m + (m >= 21 ? 1 : 0) >= 42 ? 1 : 0);
 }
+
+/**
+ * Octant mask (bit k = octant k + 1, row-major from top-left: 1 2 / 3 4 / 5 6 / 7 8) -> code point. U+1CD00
+ * onwards holds the patterns in mask order, leaving out the 26 that already had a character.
+ */
+const OCT_HAD = {
+  0: 32, 1: 0x1cea8, 2: 0x1ceab, 3: 0x1fb82, 5: 0x2598, 10: 0x259d, 15: 0x2580, 20: 0x1fbe6, 40: 0x1fbe7,
+  63: 0x1fb85, 64: 0x1cea3, 80: 0x2596, 85: 0x258c, 90: 0x259e, 95: 0x259b, 128: 0x1cea0, 160: 0x2597,
+  165: 0x259a, 170: 0x2590, 175: 0x259c, 192: 0x2582, 240: 0x2584, 245: 0x2599, 250: 0x259f, 252: 0x2586, 255: 0x2588,
+};
+const OCT_CP = new Uint32Array(256);
+for (let m = 0, k = 0; m < 256; m++) OCT_CP[m] = OCT_HAD[m] ?? 0x1cd00 + k++;
+// only the octant-only characters: the quadrant and half blocks keep their own masks above
+const OCT_MASK = new Map([...OCT_CP].map((cp, m) => [cp, m]).filter(([cp]) => cp >= 0x1cd00));
 
 /** Sextant mask (bit k = sub-cell k, row-major from top-left) -> code point. */
 export function sextantCp(m) {
@@ -575,7 +595,7 @@ export class BigFont {
         if (!s.in(cx, cy)) continue;
         const under = s.bg[cy * s.w + cx];
         const fc = typeof color === 'function' ? color(c, 2 * r, 1) : color;
-        if (MOSAIC === 'sext') {
+        if (MOSAIC === 'sext' || MOSAIC === 'oct') {
           // every sub-cell is ink or paper: with two colours per cell, a fade at this size reads as a dim box
           let mask = 0;
           for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
@@ -585,7 +605,7 @@ export class BigFont {
           if (!mask) continue;
           const fg = mix(under, fc, Math.min(1, alpha));
           if (mask === (1 << n) - 1) s.put(cx, cy, 0x2588, fg, under);
-          else s.put(cx, cy, sextantCp(mask), fg, under);
+          else s.put(cx, cy, MOSAIC === 'oct' ? OCT_CP[mask] : sextantCp(mask), fg, under);
           continue;
         }
         // quadrants are too coarse to say ink or paper: the cell keeps two shades, so a stroke thinner than a
