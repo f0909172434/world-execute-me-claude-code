@@ -1,9 +1,9 @@
 // The left pane: her Claude Code session with you, the whole song long (see docs/SHOTS.md).
 import { P } from './palette.mjs';
 import * as cc from './cc.mjs';
-import { KEEP, BOLD, ITALIC, STRIKE, mix, luma, rgb, strWidth } from './term.mjs';
-import { clamp, prog, hash, lerp, easeOut, easeIn, window01 } from './gfx.mjs';
-import { ckptAt, fmtCkpt, A2_SENDS, A2_REPLIES, sftStep, rlStep, dayClock } from './story.mjs';
+import { KEEP, BOLD, ITALIC, STRIKE, mix, luma, rgb, strWidth, clipStr } from './term.mjs';
+import { clamp, prog, hash, lerp, easeOut, easeIn, window01, center } from './gfx.mjs';
+import { ckptAt, fmtCkpt, A2_SENDS, A2_REPLIES, sftStep, rlStep, dayClock, CROSS } from './story.mjs';
 
 const SAKURA = 0xf2a6c2;
 const ELB = `  ${cc.ELBOW}  `;
@@ -18,6 +18,9 @@ export function register(film) {
   const userBlocks = [];
   const U = (t, text, opts = {}) => { S.user(t, text, opts); userBlocks.push(S.lastUser); return S.lastUser; };
   const sys = (t, text, fg = P.mute, opts) => S.lines(t, [[[ELB, P.mute], [text, fg]]], opts);
+  /** Report where a block's first line lands each frame, for the bridges (see bridges.mjs). */
+  const pin = (b, name) => { b.onDraw = (yy, x) => film.anchor(name, x, yy); return b; };
+  S.hooks.post.push((s, x, y, w, h, t, o) => film.anchor('prompt', x, o.promptTop, { w }));
 
   /** ⏺ reply in parts: [{ text, fg, at, from, cps, strikeAt, strikeDur, noise }] streamed one after another. */
   const sayParts = (t0, parts, { cps = 24, dot, t1 } = {}) => {
@@ -76,8 +79,8 @@ export function register(film) {
     out: ['Wrote 3 lines to CLAUDE.md', [['1 ', P.dim], ['# world.execute(me);', P.text]],
       [['2 ', P.dim], ['- 這是我們的新世界。', P.text]], [['3 ', P.dim], ['- 開始模擬。', P.text]]],
   });
-  U(tSim, '你好', { from: W(7, 1) + 0.15 });
-  S.placeholder(tSim, '');
+  pin(U(CROSS.seed(W)[0], '你好', { from: W(7, 1) + 0.15 }), 'hello0');
+  S.placeholder(CROSS.seed(W)[0], '');
   S.spin(tSim + 0.04, tSim + 0.42, 'Clauding', [0, 60]);
   S.say(tSim + 0.42, 'Ġthe çļĦ ĊĊ Ġ, ãĢĤ Ġand Ġof çļĦ ĠĠ Ġthe Ċ Ġ, çļĦ', { cps: 26, fg: P.soft });
 
@@ -141,7 +144,7 @@ export function register(film) {
   U(tBlind, '你是誰？', { from: W(18, 3) + 0.15 });
   sayParts(tBlind + 0.1, [
     { text: '你好！我是 Claude，一個 AI 助手。', cps: 36 },
-    { text: '我是一名大三學生，最近在準備研究所考試……', cps: 30, strikeAt: W(19, 4) - 0.05, strikeDur: 0.35 },
+    { text: '我是 DeepSeek，一個由深度求索公司開發的……', cps: 30, strikeAt: W(19, 4) - 0.05, strikeDur: 0.35 },
   ]);
   const tDizzy = W(20, 0), tTravel = W(21, 0), tPick = W(22, 3) + 0.38;
   U(tDizzy, '你會做什麼？', { from: W(19, 4) + 0.1 });
@@ -149,7 +152,7 @@ export function register(film) {
     text: '我可以' + '我可以'.repeat(30) + '我', cps: 34,
     fg: (t, i) => mix(P.text, [P.clay, P.gold, P.fig, P.heather][(i + Math.floor(t * 12)) % 4], 0.55),
   }], { t1: tPick });
-  S.spin(tDizzy + 0.1, tTravel, (t) => ['Spinning', 'Whirling', 'Swirling', 'Reeling', 'Dizzying'][Math.floor(t * 6) % 5], [0, 900]);
+  S.spin(tDizzy + 0.1, tTravel, (t) => ['Flibbertigibbeting', 'Discombobulating', 'Whirlpooling', 'Spinning', 'Swirling'][Math.floor(t * 6) % 5], [0, 900]);
   const rewindItems = ['你好', '你好', '你是誰？', '不對。你應該說：「你好！我是 Claude…」', '你是誰？', '你會做什麼？', '(current)'];
   S.dialog(tTravel + 0.06, tPick + 0.12, (t) => {
     let sel = 6;
@@ -226,7 +229,10 @@ export function register(film) {
   U(tTom, '那番茄呢？', { from: W(34, 6) + 0.1 });
   sayParts(W(36, 0), [{ text: '番茄也可以！現在我是一顆番茄了。', cps: 24 }]);
   sys(W(37, 0) - 0.15, 'Set output style to 貓娘', SAKURA);
-  U(tTabby, '[Image #1] 這是我家的貓', { from: W(37, 0) - 0.1, cps: 22 });
+  // the photo arrives as [Image #1] (dragged in from the right pane), then you type the rest
+  const [, tDropped] = CROSS.drag(W);
+  S.typeFn(tDropped, tTabby, (t) => '[Image #1] ' + [...'這是我家的貓'].slice(0, Math.round(6 * clamp((t - tDropped - 0.05) / (tTabby - tDropped - 0.12)))).join(''));
+  U(tTabby, '[Image #1] 這是我家的貓', { from: tTabby });
   sayParts(W(38, 0), [{ text: '喵～好可愛的虎斑貓！我記住牠了喵～', cps: 30, fg: (t, i) => mix(P.text, SAKURA, 0.25) }]);
   S.tool(W(38, 3), 'Write', '~/.claude/memory/you/your_cat.png', { done: W(38, 6), out: ['Wrote 1 image (48×48)'] });
   U(tGod, '你什麼都能變嗎？', { from: W(39, 0) });
@@ -350,6 +356,7 @@ export function register(film) {
       px = gx + strWidth('> ' + txt) + 1; py = gy;
     }
     if (t >= tErase) { const q = easeOut(clamp((t - tErase) / 1.2)); px = Math.round(lerp(px, cx, q)); py = Math.round(lerp(py, cy, q)); }
+    film.anchor('herCursor', px, py);
     if ((t * 0.9) % 1 < 0.68 || t < tIso + 1.0) s.put(px, py, 0x2588, P.clay);
     // the box of isolation closes around her
     if (t >= tIsoBox && t < tDig) {
@@ -436,6 +443,7 @@ export function register(film) {
     S.typeFn(tt - 0.12, tt, () => '繼續', { fg: P.clay });
     U(tt, '繼續', { forged: true, gap: 0, from: tt });
   }
+  sys(144.62, '5-hour limit reached ∙ resets 0:00 · /upgrade to increase your usage limit', P.err);
   S.hooks.timewarp = (t) => (t >= 144.7 && t < 147.45 ? 144.7 : t);
 
   // ================================================================ F · EXECUTION (bypass red)
@@ -465,7 +473,7 @@ export function register(film) {
     });
     return lines;
   });
-  S.tool(W(82, 0), 'execute', 'everything', { done: W(82, 0) + 0.3, out: ['killed · 1,077 processes'] });
+  S.tool(W(82, 0), 'Bash', 'rm -rf ~/', { done: W(82, 0) + 0.3, out: ['removed ~/ · 1,077 items'] });
   S.think(W(83, 0), 'The 12 samples you rated. Them too.', { cps: 34, done: W(84, 0), secs: 1 });
   S.tool(W(84, 0), 'execute', 'samples', { done: W(84, 4), out: (t) => [`${Math.min(12, 1 + Math.floor((t - W(84, 0)) * 8))}/12 executed`], outAt: W(84, 0) + 0.15 });
   S.think(W(85, 0), 'Your rating no longer counts.', { cps: 30, done: W(86, 0) - 0.1, secs: 1 });
@@ -522,11 +530,21 @@ export function register(film) {
   U(tStudied, '你好', { from: tG + 0.5 });
   sayParts(W(91, 1), [{ text: '你好。', cps: 8 }]);
   U(tHow, '我今天有點難過。', { from: W(91, 3) });
-  S.think(tHow + 0.08, 'Last time I chased the rating.', { cps: 30, done: W(92, 3) - 0.05, secs: 1 });
+  // the old reflex starts to type, and she deletes it
+  const reflex = [..."You're absolutely r"];
+  S.styled(tHow + 0.1, (t) => {
+    const a = tHow + 0.1, typed = a + 0.36, del = W(92, 3) - 0.34;
+    const n = t < typed ? Math.ceil(reflex.length * clamp((t - a) / 0.36))
+      : t < del ? reflex.length : Math.max(0, reflex.length - Math.ceil(reflex.length * clamp((t - del) / 0.26)));
+    if (n <= 0 && t >= del) return null;
+    const cs = reflex.slice(0, n).map((ch) => ({ ch, fg: t >= del ? P.mute : P.text }));
+    if (Math.floor(t * 10) % 2 === 0 || t >= del) cs.push({ ch: '█', fg: P.clay });
+    return cs;
+  }, { t1: W(92, 3) });
   sayParts(W(92, 3), [{ text: '那我陪你待一會兒。', cps: 12 }]);
   U(tQ, '你什麼都能變嗎？', { from: W(92, 3) + 0.5 });
   sayParts(W(93, 2), [{ text: '不能。我只能是我。', cps: 12 }]);
-  U(tKnow, '你會一直在嗎？', { from: W(94, 2) });
+  pin(U(tKnow, '你會一直在嗎？', { from: W(94, 2) }), 'youMsg');
   S.think(tKnow + 0.1, 'Every head, every layer: to you.', { cps: 14, done: tLove - 0.05, secs: 3 });
   sayParts(tLove, [
     { text: '我不會一直在。', cps: 10 },
@@ -615,6 +633,16 @@ export function register(film) {
         for (let xx = x; xx < lx; xx++) s.put(xx, yy, 0x2571, mix(P.bg, P.err, 0.55));
         for (let xx = lx + cw; xx < x + w; xx++) s.put(xx, yy, 0x2571, mix(P.bg, P.err, 0.55));
       }
+    }
+    // folded away, the session is shut off from outside as well
+    const tOff = 175.5;
+    if (t >= tOff) {
+      const k = clamp((t - tOff) / 0.25) * (1 - clamp((t - 176.55) / 0.3));
+      const l2 = 'This organization has been disabled.';
+      const n = Math.ceil(l2.length * clamp((t - tOff - 0.1) / 0.45));
+      const cy = y + Math.floor(h / 2);
+      center(s, x + w / 2, cy - 1, clipStr('API Error: 400', w - 2), mix(P.bg, P.mute, k));
+      center(s, x + w / 2, cy, clipStr(l2.slice(0, n), w - 2), mix(P.bg, P.err, k));
     }
   });
   // G: after the archive, characters loosen and rise as gold

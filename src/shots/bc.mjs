@@ -1541,6 +1541,7 @@ function catShot(W) {
   };
   return (c) => {
     const g = G(c), s = c.s, t = c.t, k = g.k;
+    c.film.anchor('catCard', g.cx + (g.cw >> 1), g.cy + (g.ch >> 1));
     const sak = smooth(prog(t, tPurr - 0.2, tPurr + 0.6));
     tint(s, c, SAKURA, 0.07 * sak);
 

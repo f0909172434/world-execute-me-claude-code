@@ -741,6 +741,7 @@ function globeShots(film, tG0, tG1, tL1) {
       }
     }
     px.blit(s, F.x, F.y);
+    c.film.anchor('life', F.x + F.nx, F.y + (F.ny >> 1));
     // counters
     const kc = prog(lt, 0.9, 1.2);
     if (kc > 0) {

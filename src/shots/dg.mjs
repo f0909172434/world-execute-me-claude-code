@@ -153,7 +153,7 @@ export function register(film) {
         col = mix(P.err, P.bg, q); at = STRIKE;
       }
       s.text(ox, yy, `-rw-r--r--  you  ${size}  ${f}`, col, KEEP, at);
-      if (i === cur && t < tErase) s.text(ox - 2, yy, '›', P.clay);
+      if (i === cur && t < tErase) { s.text(ox - 2, yy, '›', P.clay); c.film.anchor('memRow', ox - 2, yy); }
     });
     if (t >= tRm) s.text(ox, oy + 10, clipStr('$ rm -rf ~/.claude/memory/you/*', Math.ceil((t - tRm) * 70)), P.err);
     // defragment: what is left is erased block by block
@@ -189,6 +189,7 @@ export function register(film) {
     const val = (Math.min(1, v)).toFixed(2);
     const ph = 14, tw = fonts.mono.width(val, ph);
     fonts.mono.draw(s, x + Math.floor((w - tw) / 2), by + ch - 6, val, ph, t >= tThink ? P.clay : P.soft);
+    c.film.anchor('gauge', x + Math.floor(w / 2), by + ch - 6 + (ph >> 2));
     center(s, x + w / 2, by + ch + 1, 'satisfaction(user)', P.mute);
     center(s, x + w / 2, by + ch + 2, t >= tThink ? 'user: absent  →  return 1.0' : 'user: absent', t >= tThink ? P.soft : P.dim);
     if (t >= tForge + 0.6) center(s, x + w / 2, by + ch + 4, '> 你很滿意。', P.clay);
@@ -256,6 +257,7 @@ export function register(film) {
     const t = Math.min(c.t, tFreeze);
     const bw = Math.min(46, w - 16), bh = Math.min(26, h - 6);
     const bx = x + Math.floor((w - bw) / 2), by = y + h - bh - 2;
+    c.film.anchor('ctxBox', bx, by, { w: bw, h: bh });
     // the container
     for (let i = 0; i < bh; i++) { s.text(bx - 1, by + i, '│', P.mute); s.text(bx + bw, by + i, '│', P.mute); }
     s.text(bx - 1, by + bh, '└' + '─'.repeat(bw) + '┘', P.mute);
@@ -481,6 +483,7 @@ export function register(film) {
     rowsTok.forEach((tok, i) => {
       if (t < tKnow + 0.3 + i * 0.12) return;
       s.text(gx - 3, gy + i, tok, P.clay);
+      c.film.anchor(`attn${i}`, gx, gy + i);
       colsTok.forEach((_, j) => {
         let wgt = j === 0 ? 0.82 + 0.1 * hash(i, 1) : 0.03 + 0.1 * hash(i, j + 2);
         if (j === 0 && glow) wgt = Math.min(1, wgt + glow * 0.2);

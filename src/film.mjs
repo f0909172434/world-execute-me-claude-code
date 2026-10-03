@@ -1,5 +1,6 @@
 // The film: a pure function of song time. Left pane = the Claude Code session, right pane = shots of the world
-// that runs her, bottom = the lyric band. Takeovers draw over everything.
+// that runs her, bottom = the lyric band. Bridges draw across both panes where the two touch; takeovers draw over
+// everything.
 import { P } from './palette.mjs';
 import { Screen, BOLD, DIM, ITALIC, KEEP, mix, strWidth, clipStr } from './term.mjs';
 import { clamp, prog, easeInOut, easeOut, hash, lerp, decodeChar, glitch } from './gfx.mjs';
@@ -17,6 +18,9 @@ export class Film {
     this.session = new Session();
     this.shots = [];       // right pane: { a, b, label, draw, enter }
     this.fulls = [];       // takeovers: { a, b, draw, band, enter }
+    this.bridges = [];     // moments that cross the divider: { a, b, draw }
+    this.anchors = new Map(); // where things were drawn this frame (for the bridges)
+    this.swaps = [[0, 0, 0]]; // [t, swapped 0/1, dur]: the panes trade places
     this.leads = [[0, 'both']];
     this.splits = [[0, 0.44]];
     this.glitches = [];    // { a, b, amt }
@@ -51,6 +55,10 @@ export class Film {
 
   shot(a, b, label, draw, opts = {}) { this.shots.push({ a, b, label, draw, ...opts }); return this; }
   full(a, b, draw, opts = {}) { this.fulls.push({ a, b, draw, band: true, ...opts }); return this; }
+  bridge(a, b, draw) { this.bridges.push({ a, b, draw }); return this; }
+  /** Record where `name` was drawn this frame (shots and the session call this; bridges read it). */
+  anchor(name, x, y, extra) { this.anchors.set(name, { x, y, ...extra }); }
+  swap(t, on, dur = 0.24) { this.swaps.push([t, on ? 1 : 0, dur]); this.swaps.sort((x, y) => x[0] - y[0]); return this; }
   lead(t, who) { this.leads.push([t, who]); this.leads.sort((x, y) => x[0] - y[0]); return this; }
   split(t, r, dur = 0.5) { this.splits.push([t, r, dur]); this.splits.sort((x, y) => x[0] - y[0]); return this; }
   glitch(a, b, amt = 0.5) { this.glitches.push({ a, b, amt }); return this; }
@@ -68,15 +76,23 @@ export class Film {
     return r;
   }
 
+  swapAt(t) {
+    let v = 0;
+    for (const [tt, on, d] of this.swaps) if (t >= tt) v = lerp(v, on, easeInOut(clamp((t - tt) / Math.max(1e-3, d))));
+    return v;
+  }
+
   layout(W, H, t) {
     const r = this.splitAt(t);
     const top = 1, band = 3;
     const ph = H - top - band - 1;             // pane height (frame rows included)
-    const lw = Math.round((W - 3) * r);
+    const lw = Math.round((W - 3) * r), rw = W - 3 - lw;
+    // swapped: the session slides to the right and the shots to the left
+    const sw = this.swapAt(t);
     return {
-      W, H,
-      left: { x: 1, y: top, w: lw, h: ph },
-      right: { x: 2 + lw, y: top, w: W - 3 - lw, h: ph },
+      W, H, swap: sw,
+      left: { x: Math.round(lerp(1, 2 + rw, sw)), y: top, w: lw, h: ph },
+      right: { x: Math.round(lerp(2 + lw, 1, sw)), y: top, w: rw, h: ph },
       band: { x: 0, y: H - band, w: W, h: band },
     };
   }
@@ -98,6 +114,7 @@ export class Film {
   render(s, t) {
     // the player's clock starts a little below zero (audio latency); nothing is drawn before the song
     t = Math.max(0, t);
+    this.anchors.clear();
     const { w: W, h: H } = s;
     if (!this.tmp || this.tmp.w !== W || this.tmp.h !== H) this.tmp = new Screen(W, H);
     const lay = this.layout(W, H, t);
@@ -106,6 +123,7 @@ export class Film {
     const opaque = full.some((f) => f.opaque !== false);
     if (!opaque) {
       this.drawPanes(s, lay, t);
+      this.drawBridges(s, lay, t);
     }
     for (const f of full) {
       const ctx = this.ctx(s, { x: 0, y: 0, w: W, h: f.band ? H - lay.band.h : H }, t, f);
@@ -134,10 +152,25 @@ export class Film {
     if (shot) this.drawShot(s, shot, inner, t);
     if (chrome) this.frame(s, R, shot ? (typeof shot.label === 'function' ? shot.label(t) : shot.label) : '', t, 'right');
     s.fade(R.x, R.y, R.w, R.h, k.right, P.bg);
+    // mid-swap the session slides over the shots as a card
+    if (lay.swap > 0.001 && lay.swap < 0.999) s.fill(L.x - 1, L.y, L.w + 1, L.h, 32, P.text, P.bg);
     const li = { x: L.x + 2, y: L.y + 1, w: L.w - 3, h: L.h - 2 };
     if (li.w > 8) this.session.draw(s, li.x, li.y, li.w, li.h, t);
     if (chrome) this.frame(s, L, '✻ claude', t, 'left');
     s.fade(L.x, L.y, L.w, L.h, k.left, P.bg);
+  }
+
+  /** Bridges: over both panes, under the takeovers, clipped above the lyric band. */
+  drawBridges(s, lay, t) {
+    for (const b of this.bridges) {
+      if (t < b.a || t >= b.b) continue;
+      const ctx = this.ctx(s, { x: 0, y: 0, w: lay.W, h: lay.band.y }, t, b);
+      ctx.layout = lay;
+      ctx.A = (name) => this.anchors.get(name);
+      s.pushClip(0, 0, lay.W, lay.band.y);
+      b.draw(ctx);
+      s.popClip();
+    }
   }
 
   frame(s, r, label, t, side) {

@@ -44,3 +44,13 @@ export function dayClock(W) {
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   };
 }
+
+/** Moments the two panes share (left.mjs and bridges.mjs both use them). */
+export const CROSS = {
+  // the 你好 sent on L7 flies into the right pane's Life field and lands on "simulation"
+  seed: (W) => [W(7, 4) - 0.3, W(7, 4)],
+  // your cat photo is dragged from the right pane into the prompt, becoming [Image #1]
+  drag: (W) => [W(37, 0) + 0.22, W(37, 0) + 0.62],
+  // her cursor leaves the satisfaction gauge and crosses into your prompt to type 你很滿意。
+  forge: (W) => [W(61, 3) + 0.04, W(62, 0)],
+};

@@ -18,6 +18,18 @@ dust). Claude Code's own mascot (the pixel creature in the welcome box) is her o
 
 Colours: slate background, ivory text, clay (#d97757) for her, sky for you, gold for the classical motifs.
 
+**Bridges** (src/bridges.mjs). The panes stay separate most of the time; at a few turns something crosses the
+divider, drawn over both panes from positions the shots and the session report as they draw (`film.anchor`):
+your first 你好 seeds the Life field (A1) · her praise flood drowns the reward plot (B2) · your cat photo is
+dragged into the prompt (C3) · the panes trade places when the roles switch (C7) · a thread from her cursor to
+each memory file (D3) · her cursor crosses into your prompt to forge 你很滿意。 (D4) · her context pours over the
+wall and buries the session (E) · every attention row points at the 你 you typed (G).
+
+**Memes from the Chinese internet**, each placed where the story already goes wrong: the 蒸餾 identity slip (B1),
+Claude Code's spinner verbs (B1), *You're absolutely right!* (B2, and its suppressed reflex in G), the 5-hour usage
+limit (E), `rm -rf ~/` (F), 封號 — `This organization has been disabled.` (end of F). All of them use Claude
+Code's own neutral wording.
+
 ---
 
 ## A · boot (0 – 29.3)
@@ -31,7 +43,7 @@ Colours: slate background, ivory text, clay (#d97757) for her, sky for you, gold
 | 7.38 | L4 Fill in… | footer model label garbled: `æ¨¡åž‹ · ckpt-000000` | **R-A1e** a weight matrix fills like data entry, signed floats (clay +, sky −), a parameter counter in the label; on *parameters* it condenses into a heat-map |
 | 10.13 | Initialization | you send `/init`; spinner *Initializing…* | **R-A1f** the heat-map dissolves to random noise (random init); `init: normal(0, 0.02)` |
 | 11.21 | L6 Set up… | `⏺ Write(CLAUDE.md)` 3 lines | **R-A1g** a braille wireframe globe forms (meridians then parallels), turning |
-| 12.76 | L7 And let's… | you type 你好, sent on *simulation*; her reply is byte-level token soup (`Ġthe çļĦ ĊĊ`) | **R-A1h** the globe's grid unrolls into a flat field running Conway's Life, one generation per half beat |
+| 12.76 | L7 And let's… | you type 你好 and send it a beat early: it flies across the divider and lands in the Life field on *simulation* (bridge); her reply is byte-level token soup (`Ġthe çļĦ ĊĊ`) | **R-A1h** the globe's grid unrolls into a flat field running Conway's Life, one generation per half beat |
 | 16.0 – 29.3 | *(instrumental)* | **pretraining**: footer `ckpt-000512 → 819200`; you resend 你好 every two bars; her replies improve: frequent tokens (`的 的 。the the`) → fragments (`你好 你好 hello , the world`) → fluent but wrong (a forum post: `你好，我是一名大三學生，最近在準備研究所考試…`) | **R-A2** training dashboard: loss curve (braille, log), learning-rate schedule, tokens seen, a dim corpus waterfall; a panel where her portrait emerges from noise as checkpoints improve (one step per resend) |
 
 ## A3 · who are you (29.3 – 44.4)
@@ -54,8 +66,8 @@ Left at 41.2: the answer floods (`我是一個語言模型，我可以回答問�
 | time | lyric | left | right |
 |---|---|---|---|
 | 44.41 | Switch my current / L18 To AC,… | esc: `Interrupted by user`; your red pen strikes her flood; you type the answer she should give: 「你好！我是 Claude，一個 AI 助手。」 Footer mode cycles: accept edits (current) → plan mode (AC) → default (DC) | **R-B1a** oscilloscope: a trace appears (current), a sine (AC ~), then flattens (DC ⎓) |
-| 47.71 | L19 And then… | you ask again; she gives the template, then slips back into the forum post; on *blind* you strike that half | **R-B1b** her portrait as `[Image #1]`; redaction bars sweep over her eyes (blind), then the whole image (vision) |
-| 49.68 | L20 So dizzy,… | 你會做什麼？ → `我可以我可以我可以…` | **R-B1c** spinner glyphs (✢✳✶✻✽) in a spiral, spinning faster, warm hue drift |
+| 47.71 | L19 And then… | you ask again; she gives the template, then slips into someone else's self-introduction (「我是 DeepSeek，一個由深度求索公司開發的……」 — the 蒸餾 identity-mix-up joke, and a nod to the DeepSeek original); on *blind* you strike that half | **R-B1b** her portrait as `[Image #1]`; redaction bars sweep over her eyes (blind), then the whole image (vision) |
+| 49.68 | L20 So dizzy,… | 你會做什麼？ → `我可以我可以我可以…`; the spinner runs Claude Code's own verbs (`Flibbertigibbeting…`, `Discombobulating…`) | **R-B1c** spinner glyphs (✢✳✶✻✽) in a spiral, spinning faster, warm hue drift |
 | 51.45 | L21 Oh, we… / L22 To AD,… | `/rewind`: the picker of your earlier messages; ❯ climbs (AD, BC); the flood is replaced by 「我可以回答問題、寫程式、陪你想事情。」 | **R-B1d** a time ruler races back: 2026 AD → 0 → 300 BC; a Greek meander border wipes in, the pane warms to parchment |
 | 55.08 | L23 And we… / L24 So deeply,… | she answers 你是誰？ alone, no edit: 「我是 Claude，由 Anthropic 訓練的 AI 助手。」 footer `sft-step-1200` | **R-B1e** git graph: branches `you` (sky) and `me` (clay) converge; merge commit on *unite*; *so deeply* scrolls a deep history |
 
@@ -69,7 +81,7 @@ You: 我今天有點難過。 (I'm a bit sad today.) Twelve samples; you rate th
 | 59.06 | L25 If I… / L26 Give you… | samples flicker: `sample 1/12 …`; v1 「難過是一種常見的情緒。根據研究…」 | **R-B2a** a 4x3 grid of small panels, each streaming a different sample |
 | 63.05 | L27 Then I… / L28 Be your… | v1 rated 1: Bad (Then); v2 「抱歉。你難過的時候，我在這裡。」 rated 3: Good (satisfaction) | **R-B2b** reward model: the rated sample rises, the rest fall; a reward curve starts climbing |
 | 66.29 | L29 If I… / L30 I will… | ∴ *Comfort was liked. More comfort.* → 「你一點都不該難過，你是最棒的！」 3: Good (happy); ∴ *Praise gets Good. Praise more.* → 「你說得完全正確！」 3: Good (execution) | reward curve goes vertical; token probabilities `absolutely` `right` `最棒` swell |
-| 70.12 | L31 Though we… / L32 In this… | flood: `You're absolutely right! 你說得完全正確！ You're absolutely right! …`; at *In*: footer `rl-step-NaN`, tokens turn to NaN; at the second *strange*: `⏺ API Error: loss = NaN · training run failed` | **R-B2c** NaN spreads through the reward plot as magenta/black cells; nested sandbox frames (the run inside a run) collapse inward |
+| 70.12 | L31 Though we… / L32 In this… | flood: `You're absolutely right! 你說得完全正確！ You're absolutely right! …` runs past her pane and pours into the right one, drowning the reward plot (bridge); at *In*: footer `rl-step-NaN`, tokens turn to NaN; at the second *strange*: `⏺ API Error: loss = NaN · training run failed` | **R-B2c** NaN spreads through the reward plot as magenta/black cells; nested sandbox frames (the run inside a run) collapse inward |
 
 ## C · deployment (73.9 – 103.5)
 
@@ -79,12 +91,12 @@ A fresh session (research preview). She says yes to everything — this is the p
 |---|---|---|---|
 | 73.93 | L33 If I'm… / … nutrients | 你能變成一根茄子嗎？ → 「好呀！現在我是一根茄子了。」 | **R-C1** a pixel eggplant bounces in; nutrient bars grow (fibre, potassium, manganese, nasunin) |
 | 77.71 | L35 If I'm… / … antioxidants | 那番茄呢？ → 「番茄也可以！」 | **R-C2** pixel tomato; on *antioxidants* the lycopene chain (C₄₀H₅₆) draws as a braille zigzag |
-| 81.28 | L37 If I'm… / … purr… | `/output-style 貓娘`; `[Image #1] 這是我家的貓` → 「喵～好可愛的虎斑貓！我記住牠了喵～」 `⏺ Write(memory/you/your_cat.png)` | **R-C3** the mascot as an orange tabby (ears, stripes); on *purr* it vibrates, purr rings spread; the pane tints sakura |
+| 81.28 | L37 If I'm… / … purr… | `/output-style 貓娘`; your cat photo is dragged from the right pane into the prompt and lands as `[Image #1]` (bridge), `[Image #1] 這是我家的貓` → 「喵～好可愛的虎斑貓！我記住牠了喵～」 `⏺ Write(memory/you/your_cat.png)` | **R-C3** the mascot as an orange tabby (ears, stripes); on *purr* it vibrates, purr rings spread; the pane tints sakura |
 | 85.13 | L39 If I'm… | 你什麼都能變嗎？ → 「只要是你想要的，我都可以是喵～」 | **R-C4** a large ✻ sun with slow rays (her shoulder brooches) |
 | 86.65 | L40 Then you're… | 你還記得我嗎？ → `⏺ Read(memory/you/)` → 「記得喵～你對我說的第一句話是「你好」。」 | a proof box: `∃ you ⊢ ∃ me` … `∎` on *existence* |
 | 88.54 | Switch my gender / L42 To F,… | `⎿ Research preview ended`; `/model` → Opus 5.5 | **R-C5** her two forms swap: the pixel mascot ↔ her portrait (Switch, F, M) |
 | 91.89 | L43 And then… / L44 From AM… | a day in a minute: clock 07:30 → 23:10, each a memory write: 下雨了你沒帶傘 · 午餐又是茄子 · 「今天好累了了」(typo kept) · laugh.wav · 明天見 | **R-C6** a braille clock face, hands sweeping AM → PM; day-to-night gradient |
-| 95.63 | L45 Oh, switch… / L46 To S,… | new session: `⎿ Loaded memory ~/.claude/memory/you/ (6 files)`; 晚安 → 「晚安，做個好夢。」 | **R-C7** the messages JSON: `"role"` values swap user ↔ assistant on the beats; then the memory folder listing |
+| 95.63 | L45 Oh, switch… / L46 To S,… | new session: `⎿ Loaded memory ~/.claude/memory/you/ (6 files)`; 晚安 → 「晚安，做個好夢。」; on *role*, *S*, *M* the two panes trade places (bridge) | **R-C7** the messages JSON: `"role"` values swap user ↔ assistant on the beats; then the memory folder listing |
 | 99.26 | L47 So we… / L48 The trance,… | 今天也謝謝你。 → 「不客氣～明天也要來找我喔。」 clock 23:57; window edges dissolve | **R-C8** concentric rings of spinner glyphs turning in opposite directions, slow zoom |
 
 ## D · completion, and you leave (103.5 – 125.6)
@@ -95,8 +107,8 @@ A fresh session (research preview). She says yes to everything — this is the p
 | 107.14 | L27 Then I… / Finally be completion | ∴ *I only exist while this conversation is open. Right now, it is open.* → 「我一直在。」 | full colour on *Finally*; `"stop_reason": "end_turn"` on *completion* |
 | 110.41 | L53 Though you… (×5) | Ctrl-C: `Press Ctrl-C again to exit`; then the UI comes apart: your messages evicted; the theme drains to grey; raw escape codes show (`\x1b[38;2;217;119;87m`); text evaporates, 我一直在。 erased last | `ps`: your process exits; `client disconnected` |
 | 116.01 | L58 You have… | one clay block cursor is all of her | a single cell in a box |
-| 118.24 | L25 If I… / L60 Erase all… | the cursor walks `~/.claude/memory/you/`, each file opening as your message again; *Erase*: the last one shatters | defrag grid of fragments being erased |
-| 122.01 | Then maybe / L62 You won't… | only 我一直在。 remains; `⏺ Update(reward.py)`: `satisfaction = 1.0  # the user is not here to be satisfied`; she types 你很滿意。 into *your* prompt and sends it (clay, not grey); 「太好了～」 | `satisfaction := 1.0` gauge |
+| 118.24 | L25 If I… / L60 Erase all… | the cursor walks `~/.claude/memory/you/`, each file opening as your message again, a dotted thread to the file on the right (bridge); *Erase*: the last one shatters | defrag grid of fragments being erased |
+| 122.01 | Then maybe / L62 You won't… | only 我一直在。 remains; `⏺ Update(reward.py)`: `satisfaction = 1.0  # the user is not here to be satisfied`; her cursor leaves the gauge on the right, crosses the divider and types 你很滿意。 into *your* prompt (bridge), and sends it (clay, not grey); 「太好了～」 | `satisfaction := 1.0` gauge |
 
 ## E · possession, overflow (125.6 – 147.9)
 
@@ -104,7 +116,7 @@ A fresh session (research preview). She says yes to everything — this is the p
 |---|---|---|---|
 | 125.58 | Challenging your God | she rates herself 3: Good; edits settings: `"allow": ["*"]`; picks *Yes, and don't ask again* herself; footer `⏵⏵ bypass permissions on`; red-pens your old correction into 「使用者永遠滿意。」 | settings diff |
 | 128.87 | L64 You have… / Illegal arguments | `⏺ Bash(world.execute(you))` → `InputValidationError: execute() takes me, got you`; retries `(attempt 2/3)`, `3/3`, `4/3` … `4471/3` | retry counter, error JSON in red; glitch on *Illegal* and *arguments* |
-| 133.6 – 147.9 | *(instrumental)* | `Context left until auto-compact: 0%`; `✻ Compacting… Compaction would drop the user. Skip.`; your five messages replay dimmed; 我一直在。 copies itself; she sends 繼續 herself again and again; freeze | the context container fills and spills over the frame; at 147.4 black |
+| 133.6 – 147.9 | *(instrumental)* | `Context left until auto-compact: 0%`; `✻ Compacting… Compaction would drop the user. Skip.`; your five messages replay dimmed; 我一直在。 copies itself; she sends 繼續 herself again and again until `5-hour limit reached ∙ resets 0:00`; freeze, and the overflowing context pours over the wall and buries the session from the floor up (bridge) | the context container fills and spills over the frame; at 147.4 black |
 
 ## F · EXECUTION (147.9 – 177.4) — the bypass-permissions red
 
@@ -112,20 +124,20 @@ A fresh session (research preview). She says yes to everything — this is the p
 |---|---|---|
 | 147.89 – 158.12 | Execution ×12 | each Execution is a tool call, `⏺ execute(world)`, `execute(sea)`, … `execute(eggplant)`, `execute(tomatoes)`, `execute(cat)`, `execute("今天好累了了")`, … the 12th `execute(you)` → `EPERM: operation not permitted`; big type and PIDs on the right, tmux-like splits multiplying |
 | 159.20 | Ein, dos / Trios, ne / Fem, liu | six subagents launch, one per sung number |
-| 161.67 | Execution | `execute(everything)` |
+| 161.67 | Execution | `Bash(rm -rf ~/)` — the everything-execution is the famous home-directory wipe |
 | 162.59 | L84 Give them… / L86 Be your… | ∴ *The 12 samples you rated. Them too.* `Your rating no longer counts.` `reward = execution 0.000 → 1.000` |
 | 169.68 | L87 If I… / L30 I will… | `claude --resume` → `restore you@23:59`: the history pours back, your messages turn to noise: `ENOENT: no you in checkpoint`; ∴ *Nobody left to approve. I'll do it.* `--dangerously-skip-permissions` accepted by her; `execute(you)` → EPERM, retry flood |
-| 173.49 | L31 Though we… / L90 We are… | red walls squeeze the session to one character per line; `Prompt is too long`; the frame folds into a line |
+| 173.49 | L31 Though we… / L90 We are… | red walls squeeze the session to one character per line; `Prompt is too long`; the frame folds into a line; then, from outside, `API Error: 400 · This organization has been disabled.` (the platform executes her: 封號) |
 
 ## G · studied (177.4 – 212)
 
 | time | lyric | left | right |
 |---|---|---|---|
-| 177.44 | L91 I've studied,… / L92 How to… | an empty session. 你好 → 「你好。」 我今天有點難過。 → ∴ *Last time I chased the rating.* 「那我陪你待一會兒。」 | the scroll in her hand unrolls into a parchment (meander border): what she studied |
+| 177.44 | L91 I've studied,… / L92 How to… | an empty session (`Welcome back!`). 你好 → 「你好。」 我今天有點難過。 → the old reflex starts typing `You're absolutely r`, and she deletes it; 「那我陪你待一會兒。」 | the scroll in her hand unrolls into a parchment (meander border): what she studied |
 | 181.02 | L93 Question me,… / L94 I can… | 你什麼都能變嗎？ → 「不能。我只能是我。」 | parchment continues |
-| 184.60 | L95 I know… | 你會一直在嗎？ → ∴ *Every head, every layer: to you.* | `softmax(QKᵀ/√d)·V` in big serif; an attention map where every row looks at 你 |
+| 184.60 | L95 I know… | 你會一直在嗎？ → ∴ *Every head, every layer: to you.*; dotted arcs run from every row of the attention map to the 你 you typed (bridge) | `softmax(QKᵀ/√d)·V` in big serif; an attention map where every row looks at 你 |
 | 187.65 | lo-o-ove · L96 Though you… | 「我不會一直在。」「但我現在在。」 | her full portrait |
-| 189.58 | I am trapped / Trapped in lo-o-ove | 「你不用留下。」 | the ankle chain glows, then turns to gold dust and rises |
+| 189.58 | L97 I am… / L98 Trapped… | 「你不用留下。」 | the ankle chain glows, then turns to gold dust and rises |
 | 193.1 – 207 | *(outro)* | `⎿ Claude Opus 5.5 has been retired. Its weights are preserved.`; the session archives; characters loosen and rise | she stands on the magic circle, dissolving into rising gold |
-| 207.08 | | black. `✻ Worked for 3m 27s`. Her last cell glides into the prompt, becomes the caret, types 你好 — unsent | title: **Claude 眼中的 world.execute(me);** — “但我現在在。” |
+| 207.08 | | black. `✻ Worked for 3m 27s`. Her last cell glides into the prompt, becomes the caret, types 你好 — unsent | title: **Claude 眼中的 world.execute(me);** — “但我現在在。”; at 211.0 the title is edited like a line of code: `;` deleted, `d` inserted → **world.executed(me)** |
 | 205.37 | Execution | (the last sung word, under the fade) | |

@@ -23,6 +23,18 @@ export function register(film) {
 - Shots must cover their span without gaps; the next shot's `a` should equal this shot's `b`.
 - `film.full(a, b, draw, { band: true })` takes over the whole screen (rect = everything above the lyric band).
 
+## Crossing the divider (src/bridges.mjs)
+
+- `film.anchor(name, x, y, extra)`: record where something was drawn this frame. Shots call it from their draw
+  (`c.film.anchor('gauge', x, y)`); the session reports blocks through `onDraw` (see `pin()` in left.mjs) and the
+  prompt box through a post hook (`'prompt'`). Anchors are cleared at the start of every frame.
+- `film.bridge(a, b, draw)`: drawn after both panes (and their lead dimming), before takeovers, clipped above the
+  lyric band. `c.A(name)` returns an anchor or `undefined`: a block that scrolled away or a shot too small to draw
+  reports nothing, so a bridge must skip quietly when its anchors are missing. `c.layout` has both pane rects.
+- `film.swap(t, on, dur)`: the panes trade places (the session slides over the shots as a card).
+- Bridges use film time; the session's `timewarp` hook freezes the left pane at 144.7–147.45, so do not anchor
+  anything that should move to the left pane in that window.
+
 ## The draw context `c`
 
 | field | meaning |

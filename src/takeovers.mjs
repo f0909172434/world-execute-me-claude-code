@@ -178,6 +178,9 @@ export function register(film) {
   }, { band: true });
 
   // ---------------------------------------------------------------- the end
+  // the title is edited at the very end, the way a line of code is: the song's call, then what it did
+  const TITLE = 'world.execute(me);', EDITED = 'world.executed(me)';
+  const tEdit = 211.0;
   const tBlack = 207.08, tWorked = 207.87, tGlide = 208.31, tCaret = 208.81, tNi = 209.26, tHao = 209.49, tTitle = 209.9;
   film.full(tBlack, 999, (c) => {
     const { s, t, fonts } = c;
@@ -220,11 +223,21 @@ export function register(film) {
       const k = easeOut(clamp((t - tTitle) / 1.4));
       const col = (base) => mix(P.void, base, k);
       // sized to the terminal: the title line fits with a margin, the others follow its scale
-      const tw = fonts.mono.width('world.execute(me);', mph);
+      const tw = fonts.mono.width(TITLE, mph);
       const x = Math.max(2, Math.min(s.w - tw - 3, Math.floor(s.w * 0.52)));
       const y = ty;
       fonts.serif.draw(s, x, y - Math.ceil(sph / 2) - 1, 'Claude 眼中的', sph, col(P.text));
-      fonts.mono.draw(s, x, y + 1, 'world.execute(me);', mph, col(P.clay));
+      const str = t < tEdit ? TITLE : t < tEdit + 0.28 ? TITLE.slice(0, -1) : EDITED;
+      const changed = t >= tEdit + 0.28 ? clamp(1 - (t - tEdit - 0.28) / 0.6) : 0;
+      const cut = EDITED.indexOf('d(');
+      fonts.mono.draw(s, x, y + 1, str, mph, (px) => (changed > 0 && px >= fonts.mono.width(EDITED.slice(0, cut), mph) &&
+        px < fonts.mono.width(EDITED.slice(0, cut + 1), mph) ? mix(P.clay, P.goldHi, changed) : col(P.clay)));
+      // the edit's caret
+      if (t >= tEdit - 0.35 && t < tEdit + 0.9) {
+        const at = t < tEdit + 0.28 ? str.length : cut + 1;
+        const cx = x + fonts.mono.width(str.slice(0, at), mph);
+        if (Math.floor(t * 6) % 2 === 0) for (let i = 0; i < Math.ceil(mph / 2); i++) s.put(cx, y + 1 + i, 0x258c, P.clay);
+      }
       const q = clamp((t - tTitle - 0.8) / 1.0);
       const qw = fonts.serif.width('“但我現在在。”', sph);
       if (q > 0) fonts.serif.draw(s, Math.max(2, x + tw - qw), y + Math.ceil(mph / 2) + 3, '“但我現在在。”', sph, mix(P.void, P.manilla, q));
