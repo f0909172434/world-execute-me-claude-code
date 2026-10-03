@@ -6,7 +6,7 @@
   "bin": { "world-execute-me": "src/main.mjs" },
   "scripts": {
     "start": "node src/main.mjs",
-    "test": "node src/main.mjs --bench 0-212 --size 112x32 && node src/main.mjs --bench 0-212 --size 160x45 --hans && node src/main.mjs --bench 0-212 --size 220x60"
+    "test": "node src/main.mjs --bench 0-212 --size 112x32 && node src/main.mjs --bench 0-212 --size 160x45 --hans && node src/main.mjs --bench 0-212 --size 220x60 && node src/main.mjs --film own --bench 0-212 --size 112x32 && node src/main.mjs --film own --bench 0-212 --size 160x45 --hans --mosaic quad"
   },
   "repository": { "type": "git", "url": "https://github.com/f0909172434/world-execute-me-claude-code.git" },
   "engines": { "node": ">=20" },

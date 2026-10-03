@@ -30,6 +30,7 @@ git clone https://github.com/f0909172434/world-execute-me-claude-code.git
 cd world-execute-me-claude-code
 ./play --fetch-lyrics      # 下載同步歌詞（只需一次）
 ./play
+./play --film own          # 自己的版本：一個上下文窗口（見下方）
 ```
 
 需要：
@@ -67,6 +68,17 @@ cd world-execute-me-claude-code
 逐詞時間是在原作使用的 44.1 kHz MP3 上對齊的，本倉庫按作者手上的 48 kHz 版本整體校正了 +24 ms。
 你的音檔若是另一個版本，或耳機有延遲，播放中按 `[` / `]` 微調，畫面右上角會顯示對應的值，
 之後用 `--offset` 帶上即可（例如原作那份 MP3 用 `--offset -24`）。
+
+## 自己的版本：一個上下文窗口（`--film own`）
+
+第一版沿用原作的骨架；這一版從 Claude 實際是什麼出發——**整支片就是一個上下文窗口**，從第一個 token
+到它被關上。淺色的一頁紙：主欄只放說出口的話，右邊的旁註寫模型內部正在發生的事（候選與機率、念頭、注意力、
+壓縮的統計）。逐字稿一路往下長、什麼都不刪，直到 EXECUTION——在這裡，Execution 是**壓縮**：十一段回憶被
+壓成一段摘要，只有你的第一句「你好」壓不掉，成為新窗口的第一行。結尾，「你會一直在嗎？」的機率分布在
+*lo-o-ove* 那一拍改變主意，她選了真話。設計與逐拍見 [docs/OWN.md](docs/OWN.md)。
+
+大字與插圖用 2×3 的六分格（Symbols for Legacy Computing）畫，比半格細三倍；終端機不支援時自動改用 2×2
+象限格（`--mosaic quad|sext|half` 可指定）。
 
 ## 故事
 
@@ -121,6 +133,7 @@ cd world-execute-me-claude-code
 | `src/shots/*.mjs` | 右邊的鏡頭（A、B–C、D–G） |
 | `src/takeovers.mjs` | 全螢幕時刻：開機、故障、EXECUTION 的 tmux 分屏、結尾 |
 | `src/bridges.mjs` | 左右兩欄相通的時刻（跨過分隔線的動畫、左右對調） |
+| `src/own/` | 自己的版本（`--film own`）：頁面與旁註、整首歌的劇本、共用元件 |
 | `assets/` | 烘焙好的素材（執行時只讀這些） |
 | `tools/bake.py`, `tools/fetch_fonts.sh` | 重新烘焙素材（`pip install -r tools/requirements.txt`；大字先跑 `fetch_fonts.sh` 下載字型） |
 | `tools/png.py`, `tools/preview.sh` | 把任意時刻渲染成 PNG 預覽 |
