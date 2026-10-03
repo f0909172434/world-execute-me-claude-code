@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# world.execute(me); — Claude Code edition
+exec node "$(dirname "$0")/src/main.mjs" "$@"

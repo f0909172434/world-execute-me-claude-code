@@ -1,0 +1,17 @@
+# the song and its lyrics belong to Mili: bring your own, never commit them
+*.flac
+*.mp3
+*.webm
+*.wav
+*.m4a
+*.ogg
+*.lrc
+
+# recordings and previews made locally
+*.cast
+assets/src/_cutout_preview.png
+snap.bin
+
+.DS_Store
+__pycache__/
+node_modules/

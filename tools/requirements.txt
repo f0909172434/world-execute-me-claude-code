@@ -1,0 +1,4 @@
+pillow
+numpy
+fonttools
+opencc-python-reimplemented

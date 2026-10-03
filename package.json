@@ -1,0 +1,14 @@
+{
+  "name": "world-execute-me-claude-code",
+  "version": "1.0.0",
+  "description": "world.execute(me); as a Claude Code session, played live in your terminal (unofficial fan work)",
+  "type": "module",
+  "bin": { "world-execute-me": "src/main.mjs" },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "test": "node src/main.mjs --bench 0-212 --size 112x32 && node src/main.mjs --bench 0-212 --size 160x45 --hans && node src/main.mjs --bench 0-212 --size 220x60"
+  },
+  "repository": { "type": "git", "url": "https://github.com/f0909172434/world-execute-me-claude-code.git" },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}
