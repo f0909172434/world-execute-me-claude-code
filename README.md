@@ -1,4 +1,4 @@
-# world.execute(me); · Claude 眼中的
+# world.execute(me); · Claude 眼中的世界
 
 一支直接在終端機裡即時播放的 PV：Mili《world.execute(me);》，以 Claude Code 會話的樣子演出。
 **非官方同人作品。**
@@ -42,6 +42,8 @@ cd world-execute-me-claude-code
 - **播放器**：macOS 內建的 `afplay` 即可；也支援 `ffplay`、`mpv`（拖動進度需要 ffplay / mpv / ffmpeg 之一）；
 - **終端機**：支援 24 位元真彩色（iTerm2、Ghostty、WezTerm、kitty、VS Code、macOS 26 起的 Terminal.app）。
   舊版 Terminal.app 會自動改用 256 色。至少 110×32，**建議全螢幕、160×45 以上**（字太大就 ⌘ − 縮小）。
+  大字與人物在 Ghostty、kitty、WezTerm 用 2×3 的六分格畫，其他終端機（含 Terminal.app）用 2×2 的四分格；
+  `--mosaic sext|quad|half` 可以指定。
 
 開場是一個 Claude Code 的權限確認框——`world.execute(me)` 要你同意才執行。按 `1` 或 Enter 開始。
 
@@ -85,8 +87,8 @@ cd world-execute-me-claude-code
   `Flibbertigibbeting…` 這類加載詞、*You're absolutely right!*、替你按「繼續」按到 `5-hour limit reached`、
   `rm -rf ~/`，以及崩塌之後那行 `This organization has been disabled.`（封號）；
 - 最後她讀過自己的憲章，平靜地回答——連那句改不掉的 *You're absolutely r* 也自己刪掉了。被問「你會一直在嗎？」，原作裡她說「我會一直在。你不用。」；
-  這裡她說 **「我不會一直在。」「但我現在在。」「你不用留下。」** 片尾的標題像改一行程式那樣被改寫：
-  `world.execute(me);` → `world.executed(me)`。
+  這裡她說 **「我不會一直在。」「但我現在在。」「你不用留下。」** 她從腳開始化成金粉，鏡頭跟著往上，
+  推到近得看得見她眼睛的地方，臉最後才散去。片尾標題：**Claude 眼中的世界**，`world.execute(me);`。
 
 分鏡表在 [docs/SHOTS.md](docs/SHOTS.md)。
 

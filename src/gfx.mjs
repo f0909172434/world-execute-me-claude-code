@@ -1,5 +1,5 @@
 // Drawing on a Screen: easing, noise, boxes, braille and half-block canvases, images, big text.
-import { KEEP, mix, scale, strWidth, wcwidth, mapChar } from './term.mjs';
+import { KEEP, INV, mix, scale, strWidth, wcwidth, mapChar } from './term.mjs';
 
 // ---------------------------------------------------------------- numbers
 
@@ -199,13 +199,16 @@ export class Img {
    * Resample the crop [u0, v0, u1, v1] (fractions of the image) to pw x ph pixels.
    * Returns { pw, ph, c: Uint32Array, a: Float32Array }; cached per arguments.
    */
-  sample(pw, ph, u0 = 0, v0 = 0, u1 = 1, v1 = 1) {
+  sample(pw, ph, u0 = 0, v0 = 0, u1 = 1, v1 = 1, keep = true) {
     const key = `${pw}x${ph}:${u0.toFixed(4)},${v0.toFixed(4)},${u1.toFixed(4)},${v1.toFixed(4)}`;
-    let r = this.cache.get(key);
+    let r = keep && this.cache.get(key);
     if (r) return r;
     const { w, h, d } = this;
-    const c = new Uint32Array(pw * ph), a = new Float32Array(pw * ph);
+    // a moving camera (keep = false) samples into scratch buffers and at most 4×4 source pixels per pixel
+    const c = keep ? new Uint32Array(pw * ph) : this.scratch('sc', Uint32Array, pw * ph);
+    const a = keep ? new Float32Array(pw * ph) : this.scratch('sa', Float32Array, pw * ph);
     const sx0 = u0 * w, sy0 = v0 * h, sw = (u1 - u0) * w / pw, sh = (v1 - v0) * h / ph;
+    const stx = keep ? 1 : Math.max(1, Math.floor(sw / 4)), sty = keep ? 1 : Math.max(1, Math.floor(sh / 4));
     for (let py = 0; py < ph; py++) {
       const ya = sy0 + py * sh, yb = ya + sh;
       for (let px = 0; px < pw; px++) {
@@ -213,9 +216,9 @@ export class Img {
         let rr = 0, gg = 0, bb = 0, aa = 0, n = 0;
         const ix0 = Math.floor(xa), ix1 = Math.max(ix0 + 1, Math.ceil(xb));
         const iy0 = Math.floor(ya), iy1 = Math.max(iy0 + 1, Math.ceil(yb));
-        for (let iy = iy0; iy < iy1; iy++) {
-          if (iy < 0 || iy >= h) { n += ix1 - ix0; continue; }
-          for (let ix = ix0; ix < ix1; ix++) {
+        for (let iy = iy0; iy < iy1; iy += sty) {
+          if (iy < 0 || iy >= h) { n += Math.ceil((ix1 - ix0) / stx); continue; }
+          for (let ix = ix0; ix < ix1; ix += stx) {
             n++;
             if (ix < 0 || ix >= w) continue;
             const o = (iy * w + ix) * 4, al = d[o + 3] / 255;
@@ -228,21 +231,30 @@ export class Img {
       }
     }
     r = { pw, ph, c, a };
+    if (!keep) return r;
     if (this.cache.size > 64) this.cache.delete(this.cache.keys().next().value);
     this.cache.set(key, r);
     return r;
+  }
+
+  /** A reusable buffer of at least n elements (for frames that are never drawn twice). */
+  scratch(name, Type, n) {
+    this.bufs ??= {};
+    let b = this.bufs[name];
+    if (!b || b.length < n) b = this.bufs[name] = new Type(n);
+    return b.subarray(0, n);
   }
 
   /**
    * sample() followed by an unsharp mask on the colour: averaging ten source pixels into one softens the
    * line art (eyes, outlines, strands of hair); pushing each pixel away from its neighbours' mean restores it.
    */
-  crisp(pw, ph, u0 = 0, v0 = 0, u1 = 1, v1 = 1) {
+  crisp(pw, ph, u0 = 0, v0 = 0, u1 = 1, v1 = 1, keep = true) {
     const key = `crisp:${pw}x${ph}:${u0.toFixed(4)},${v0.toFixed(4)},${u1.toFixed(4)},${v1.toFixed(4)}`;
-    let r = this.cache.get(key);
+    let r = keep && this.cache.get(key);
     if (r) return r;
-    const { c, a } = this.sample(pw, ph, u0, v0, u1, v1);
-    const out = new Uint32Array(pw * ph);
+    const { c, a } = this.sample(pw, ph, u0, v0, u1, v1, keep);
+    const out = keep ? new Uint32Array(pw * ph) : this.scratch('cc', Uint32Array, pw * ph);
     for (let y = 0; y < ph; y++) {
       for (let x = 0; x < pw; x++) {
         const i = y * pw + x;
@@ -261,6 +273,7 @@ export class Img {
       }
     }
     r = { pw, ph, c: out, a };
+    if (!keep) return r;
     if (this.cache.size > 64) this.cache.delete(this.cache.keys().next().value);
     this.cache.set(key, r);
     return r;
@@ -304,10 +317,10 @@ export class Img {
    * Lines a sample wide (eyes, strands of hair) survive that half-blocks would blur. fx gets half-block
    * coordinates, as in draw().
    */
-  drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0 } = {}) {
-    const { c, a } = this.crisp(cols * 2, rows * 3, ...crop);
+  drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0, cache = true } = {}) {
+    const { c, a } = this.crisp(cols * 2, rows * 3, ...crop, cache);
     const pw = cols * 2;
-    const R = new Float32Array(6), G = new Float32Array(6), B = new Float32Array(6);
+    const R = S6R, G = S6G, B = S6B;
     for (let r = 0; r < rows; r++) {
       const sy = y + r;
       for (let col = 0; col < cols; col++) {
@@ -345,7 +358,7 @@ let MOSAIC = 'half';
 export function setMosaic(m) { MOSAIC = m; }
 export const mosaic = () => MOSAIC;
 const SUB = { half: [1, 2], quad: [2, 2], sext: [2, 3] };
-// a sub-cell is inked from this much coverage on (mosaic cells only)
+// a sub-cell is inked from this much coverage on (sextant big type)
 const INK = 0.42;
 // quadrant mask (tl 1, tr 2, bl 4, br 8) -> code point
 const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2597, 0x259a, 0x2590, 0x259c, 0x2584, 0x2599, 0x259f, 0x2588];
@@ -356,12 +369,9 @@ const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2
  */
 export function putCell6(s, x, y, R, G, B) {
   if (MOSAIC === 'half') {
-    const avg = (w) => {
-      let rr = 0, gg = 0, bb = 0, n = 0;
-      for (let k = 0; k < 6; k++) if (w[k]) { rr += R[k] * w[k]; gg += G[k] * w[k]; bb += B[k] * w[k]; n += w[k]; }
-      return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
-    };
-    const top = avg([2, 2, 1, 1, 0, 0]), bot = avg([0, 0, 1, 1, 2, 2]);
+    // top: the top row and half the middle row; bottom: the bottom row and the other half
+    const top = rgbOf((2 * (R[0] + R[1]) + R[2] + R[3]) / 6, (2 * (G[0] + G[1]) + G[2] + G[3]) / 6, (2 * (B[0] + B[1]) + B[2] + B[3]) / 6);
+    const bot = rgbOf((2 * (R[4] + R[5]) + R[2] + R[3]) / 6, (2 * (G[4] + G[5]) + G[2] + G[3]) / 6, (2 * (B[4] + B[5]) + B[2] + B[3]) / 6);
     if (top === bot) s.put(x, y, 0x2588, top, top); else s.put(x, y, 0x2580, top, bot);
     return;
   }
@@ -389,16 +399,17 @@ export function putCell6(s, x, y, R, G, B) {
     if (n1) score += (WR * r1 * r1 + WG * g1 * g1 + WB * b1 * b1) / n1;
     if (score > bestScore + 1e-6) { bestScore = score; best = m; }
   }
-  const mean = (on) => {
-    let rr = 0, gg = 0, bb = 0, c = 0;
-    for (let k = 0; k < n; k++) if (!!(best & (1 << k)) === on) { rr += CR[k]; gg += CG[k]; bb += CB[k]; c++; }
-    return (Math.round(rr / c) << 16) | (Math.round(gg / c) << 8) | Math.round(bb / c);
-  };
-  const bg = mean(false);
+  let r1 = 0, g1 = 0, b1 = 0, n1 = 0, r0 = 0, g0 = 0, b0 = 0;
+  for (let k = 0; k < n; k++) {
+    if (best & (1 << k)) { r1 += CR[k]; g1 += CG[k]; b1 += CB[k]; n1++; } else { r0 += CR[k]; g0 += CG[k]; b0 += CB[k]; }
+  }
+  const bg = rgbOf(r0 / (n - n1), g0 / (n - n1), b0 / (n - n1));
   if (!best) { s.put(x, y, 0x2588, bg, bg); return; }
-  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[best] : sextantCp(best), mean(true), bg);
+  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[best] : sextantCp(best), rgbOf(r1 / n1, g1 / n1, b1 / n1), bg);
 }
+const rgbOf = (r, g, b) => (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
 const CR = new Float64Array(6), CG = new Float64Array(6), CB = new Float64Array(6);
+const S6R = new Float32Array(6), S6G = new Float32Array(6), S6B = new Float32Array(6);
 // colour distance weights: green counts most, blue least, roughly as the eye does
 const WR = 0.9, WG = 1.2, WB = 0.6;
 
@@ -421,6 +432,40 @@ function sharpen(cov, w, h, k) {
     }
   }
   return out;
+}
+
+/**
+ * Some terminals (macOS Terminal among them) draw block glyphs a little short of the top of the cell, so a
+ * strip of each cell's background shows above them and stacked block art gets thin lines through it. Re-encode
+ * the block cells so that the strip is the colour of the cell's top: a full block takes its own colour as
+ * background, and a cell inked at its top left becomes the complementary glyph with the colours swapped.
+ * Terminals without the strip draw exactly the same picture.
+ */
+export function closeLineGaps(s) {
+  const n = s.w * s.h;
+  for (let i = 0; i < n; i++) {
+    const cp = s.ch[i];
+    if (cp < 0x2580 || (cp > 0x259f && cp < 0x1fb00) || cp > 0x1fb3b || (s.at[i] & INV)) continue;
+    if (cp === 0x2588) { s.bg[i] = s.fg[i]; continue; }
+    let flip;
+    if (cp >= 0x1fb00) {
+      const m = sextantMask(cp);
+      if (m & 1) flip = sextantCp(63 ^ m);
+    } else {
+      const q = QUAD_MASK.get(cp);
+      if (q !== undefined && (q & 1)) flip = QUAD_CP[15 ^ q];
+    }
+    if (flip === undefined) continue;
+    const f = s.fg[i];
+    s.ch[i] = flip; s.fg[i] = s.bg[i]; s.bg[i] = f;
+  }
+}
+const Q4 = new Float64Array(4);
+const QUAD_MASK = new Map(QUAD_CP.map((cp, m) => [cp, m]));
+/** Code point (U+1FB00..1FB3B) -> sextant mask. */
+function sextantMask(cp) {
+  const m = cp - 0x1fb00 + 1;
+  return m + (m >= 21 ? 1 : 0) + (m + (m >= 21 ? 1 : 0) >= 42 ? 1 : 0);
 }
 
 /** Sextant mask (bit k = sub-cell k, row-major from top-left) -> code point. */
@@ -528,17 +573,44 @@ export class BigFont {
       for (let c = 0; c < shown; c++) {
         const cx = x + c;
         if (!s.in(cx, cy)) continue;
-        // every sub-cell is ink or paper: with two colours per cell, a fade at this size reads as a dim box
-        let mask = 0;
-        for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
-          const px = c * sx + i, py = r * sy + j;
-          if (px < pw && (cov[py * pw + px] ?? 0) >= INK) mask |= 1 << (j * sx + i);
-        }
-        if (!mask) continue;
         const under = s.bg[cy * s.w + cx];
-        const fg = mix(under, typeof color === 'function' ? color(c, 2 * r, 1) : color, Math.min(1, alpha));
-        if (mask === (1 << n) - 1) s.put(cx, cy, 0x2588, fg, under);
-        else s.put(cx, cy, MOSAIC === 'quad' ? QUAD_CP[mask] : sextantCp(mask), fg, under);
+        const fc = typeof color === 'function' ? color(c, 2 * r, 1) : color;
+        if (MOSAIC === 'sext') {
+          // every sub-cell is ink or paper: with two colours per cell, a fade at this size reads as a dim box
+          let mask = 0;
+          for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
+            const px = c * sx + i, py = r * sy + j;
+            if (px < pw && (cov[py * pw + px] ?? 0) >= INK) mask |= 1 << (j * sx + i);
+          }
+          if (!mask) continue;
+          const fg = mix(under, fc, Math.min(1, alpha));
+          if (mask === (1 << n) - 1) s.put(cx, cy, 0x2588, fg, under);
+          else s.put(cx, cy, sextantCp(mask), fg, under);
+          continue;
+        }
+        // quadrants are too coarse to say ink or paper: the cell keeps two shades, so a stroke thinner than a
+        // quadrant (the bar of an E, a stroke of 界) still shows, dimmer, instead of vanishing or filling in
+        for (let k = 0; k < 4; k++) {
+          const px = c * 2 + (k & 1), py = r * 2 + (k >> 1);
+          Q4[k] = px < pw ? clamp(cov[py * pw + px] ?? 0) : 0;
+        }
+        let best = 0, bestScore = -1;
+        for (let m = 0; m < 8; m++) {                   // sub-cell 3 stays in group 0: each split once
+          let s1 = 0, n1 = 0, s0 = 0;
+          for (let k = 0; k < 4; k++) if (m & (1 << k)) { s1 += Q4[k]; n1++; } else s0 += Q4[k];
+          const score = s0 * s0 / (4 - n1) + (n1 ? s1 * s1 / n1 : 0);
+          if (score > bestScore + 1e-9) { bestScore = score; best = m; }
+        }
+        let s1 = 0, n1 = 0, s0 = 0;
+        for (let k = 0; k < 4; k++) if (best & (1 << k)) { s1 += Q4[k]; n1++; } else s0 += Q4[k];
+        let a1 = n1 ? s1 / n1 : 0, a0 = s0 / (4 - n1);
+        // the lighter group is paper: faint spill there would read as a dim box, so it drops out
+        if (a0 < 0.18) a0 = 0;
+        if (a1 < 0.18) a1 = 0;
+        if (a0 === 0 && a1 === 0) continue;
+        const ink = (v) => mix(under, fc, Math.min(1, Math.min(1, v * 1.15) * alpha));
+        if (!best || a1 === a0) { s.put(cx, cy, 0x2588, ink(Math.max(a0, a1)), under); continue; }
+        s.put(cx, cy, QUAD_CP[best], ink(a1), a0 ? ink(a0) : under);
       }
     }
     return cells;

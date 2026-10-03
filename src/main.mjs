@@ -10,7 +10,7 @@ import { ROOT, findFile, SONG_NAMES, LRC_NAMES, loadLyrics, loadFeatures, loadPo
 import { Film, DURATION } from './film.mjs';
 import { build } from './script.mjs';
 import * as cc from './cc.mjs';
-import { setMosaic } from './gfx.mjs';
+import { setMosaic, closeLineGaps } from './gfx.mjs';
 
 const HELP = `world.execute(me); — Claude Code edition
 
@@ -213,6 +213,7 @@ async function live(args) {
       const m = ` ${toast.msg} `;
       s.text(s.w - strWidth(m) - 2, 0, m, P.bg, P.clay);
     }
+    closeLineGaps(s);
     const data = renderer.frame(s);
     const next = () => setTimeout(frame, Math.max(1, interval - (performance.now() - started)));
     if (data) out.write('\x1b[?2026h' + data + '\x1b[?2026l', next);
@@ -299,6 +300,7 @@ function bench(args) {
   for (let t = a; t < b; t += 1 / 30) {
     const t0 = performance.now();
     film.render(s, t);
+    closeLineGaps(s);
     const out = r.frame(s);
     times.push([performance.now() - t0, t]);
     bytes.push(Buffer.byteLength(out));
