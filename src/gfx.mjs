@@ -235,7 +235,9 @@ export class Img {
    * Draw the crop into a cols x rows cell area at (x, y) as half-blocks.
    * fx(px, py, color, alpha) -> [color, alpha] or null may restyle each pixel (pass undefined for none).
    */
-  draw(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0 } = {}) {
+  draw(s, x, y, cols, rows, opts = {}) {
+    if (opts.cells === 'sext') return this.drawSext(s, x, y, cols, rows, opts);
+    const { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0 } = opts;
     const smp = this.sample(cols, rows * 2, ...crop);
     const { c, a } = smp;
     for (let r = 0; r < rows; r++) {
@@ -257,6 +259,46 @@ export class Img {
         const b2 = ab >= 0.98 ? cb : mix(under, cb, ab);
         if (t2 === b2) s.put(sx, sy, 0x2588, t2, under);
         else s.put(sx, sy, 0x2580, t2, b2);
+      }
+    }
+  }
+
+  /**
+   * draw() in sextant cells: 2×3 samples per cell, split by brightness into two groups whose mean colours
+   * become the cell's ink and paper. Sharper edges than half-blocks, at the cost of colour within a cell.
+   */
+  drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx } = {}) {
+    const { c, a } = this.sample(cols * 2, rows * 3, ...crop);
+    const pw = cols * 2;
+    const R = new Float32Array(6), G = new Float32Array(6), B = new Float32Array(6), L = new Float32Array(6);
+    for (let r = 0; r < rows; r++) {
+      const sy = y + r;
+      for (let col = 0; col < cols; col++) {
+        const sx = x + col;
+        if (!s.in(sx, sy)) continue;
+        const under = s.bg[sy * s.w + sx];
+        let seen = 0, lo = 1, hi = 0, mean = 0;
+        for (let k = 0; k < 6; k++) {
+          const px = col * 2 + (k & 1), py = r * 3 + (k >> 1), i = py * pw + px;
+          let cc = c[i], al = a[i] * alpha;
+          if (fx) { const f = fx(px, py, cc, al); if (f) { cc = f[0]; al = f[1]; } }
+          if (al > 0.04) seen++;
+          const m = al >= 0.98 ? cc : mix(under, cc, Math.max(0, al));
+          R[k] = (m >> 16) & 255; G[k] = (m >> 8) & 255; B[k] = m & 255;
+          L[k] = (0.2126 * R[k] + 0.7152 * G[k] + 0.0722 * B[k]) / 255;
+          lo = Math.min(lo, L[k]); hi = Math.max(hi, L[k]); mean += L[k] / 6;
+        }
+        if (!seen) continue;
+        let mask = 0;
+        if (hi - lo > 0.06) for (let k = 0; k < 6; k++) if (L[k] < mean) mask |= 1 << k;   // ink: the darker group
+        const avg = (sel) => {
+          let rr = 0, gg = 0, bb = 0, n = 0;
+          for (let k = 0; k < 6; k++) if (sel(k)) { rr += R[k]; gg += G[k]; bb += B[k]; n++; }
+          return n ? (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n) : under;
+        };
+        if (!mask) { s.put(sx, sy, 0x2588, avg(() => true), under); continue; }
+        const ink = avg((k) => mask & (1 << k)), paper = avg((k) => !(mask & (1 << k)));
+        s.put(sx, sy, sextantCp(mask), ink, paper);
       }
     }
   }

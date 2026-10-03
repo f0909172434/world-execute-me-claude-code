@@ -145,9 +145,9 @@ export function welcomeBox(s, x, y, w, { reveal = 1, greet = 'Welcome back!', mo
 
 // ---------------------------------------------------------------- transcript lines
 
-const USER_BG = 0x232220;
 
-export function userLines(text, w, { bg = USER_BG, fg = P.soft } = {}) {
+
+export function userLines(text, w, { bg = P.userBg, fg = P.soft } = {}) {
   return wrap(text, w - 3).map((ln, i) => {
     const l = [[i === 0 ? '> ' : '  ', P.mute, bg], [ln + ' ', fg, bg]];
     l.fill = bg;
@@ -254,9 +254,9 @@ export function inputBox(s, x, y, w, { text = '', placeholder = '', cursor = tru
 
 export const MODES = {
   default: null,
-  accept: ['⏵⏵ accept edits on', P.accept],
-  plan: ['⏸ plan mode on', P.plan],
-  bypass: ['⏵⏵ bypass permissions on', P.err],
+  get accept() { return ['⏵⏵ accept edits on', P.accept]; },
+  get plan() { return ['⏸ plan mode on', P.plan]; },
+  get bypass() { return ['⏵⏵ bypass permissions on', P.err]; },
 };
 
 export function footer(s, x, y, w, { mode = 'default', left, right, rightFg = P.mute } = {}) {

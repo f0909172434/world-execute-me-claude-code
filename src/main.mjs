@@ -9,6 +9,9 @@ import { Player } from './audio.mjs';
 import { ROOT, findFile, SONG_NAMES, LRC_NAMES, loadLyrics, loadFeatures, loadPortrait, loadFonts, loadHans } from './data.mjs';
 import { Film, DURATION } from './film.mjs';
 import { build } from './script.mjs';
+import { OwnFilm } from './own/film.mjs';
+import { build as buildOwn } from './own/script.mjs';
+import { setTheme } from './palette.mjs';
 import * as cc from './cc.mjs';
 import { setMosaic } from './gfx.mjs';
 
@@ -23,6 +26,7 @@ usage: node src/main.mjs [options]        (or ./play)
   --offset MS       shift the picture against the sound (+ = picture later)
   --player NAME     afplay | ffplay | mpv
   --256             256-colour mode (terminals without truecolor)
+  --film own        the version in Claude's own style (docs/OWN.md; work in progress)
   --mosaic M        big type in half | quad | sext cells (default: sext where the terminal draws sextants, else quad)
   --hans            简体中文 dialogue (default: 繁體)
   --fetch-lyrics    download the synced lyrics the film is timed on (LRCLIB entry 36914646)
@@ -49,6 +53,7 @@ function parseArgs(argv) {
     else if (k === '--player') a.player = v();
     else if (k === '--256') a.c256 = true;
     else if (k === '--mosaic') a.mosaic = v();
+    else if (k === '--film') a.film = v();
     else if (k === '--fps') a.fps = parseFloat(v());
     else if (k === '-y' || k === '--yes') a.yes = true;
     else if (k === '--quit-at-end') a.quitAtEnd = true;
@@ -81,8 +86,10 @@ export function makeFilm(opts = {}) {
   setMosaic(opts.mosaic ?? (opts.terminal ? terminalMosaic() : 'sext'));
   const lrc = opts.lrc ?? findFile(LRC_NAMES);
   const lyrics = loadLyrics(lrc);
-  const film = new Film({ lyrics, features: loadFeatures(), portrait: loadPortrait(), fonts: loadFonts() });
-  build(film);
+  const own = opts.film === 'own';
+  setTheme(own ? 'light' : 'dark');
+  const film = new (own ? OwnFilm : Film)({ lyrics, features: loadFeatures(), portrait: loadPortrait(), fonts: loadFonts() });
+  (own ? buildOwn : build)(film);
   return { film, lrc, lyrics };
 }
 

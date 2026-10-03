@@ -73,6 +73,10 @@ class Glyphs:
             for k, (qx, qy) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
                 if QUAD[cp][k] == "1":
                     a[qy * h2:(qy + 1) * h2 if qy == 0 else ch, qx * w2:(qx + 1) * w2 if qx == 0 else cw] = 1
+        elif 0x2589 <= cp <= 0x258F:                    # left eighths ▉ … ▏
+            a[:, :max(1, round(cw * (0x2590 - cp) / 8))] = 1
+        elif 0x2581 <= cp <= 0x2587:                    # lower eighths ▁ … ▇
+            a[ch - max(1, round(ch * (cp - 0x2580) / 8)):] = 1
         elif 0x1FB00 <= cp <= 0x1FB3B:                  # sextants: 2 x 3
             m = cp - 0x1FB00 + 1
             m += 1 if m >= 21 else 0
@@ -130,6 +134,7 @@ def main() -> None:
     ap.add_argument("--to", type=float, default=214.5)
     ap.add_argument("--crf", type=int, default=16)
     ap.add_argument("--hans", action="store_true")
+    ap.add_argument("--film", default=None)
     a = ap.parse_args()
     cw, chh = map(int, a.cell.split("x"))
     audio = a.audio
@@ -139,7 +144,7 @@ def main() -> None:
                 audio = str(ROOT / name)
                 break
     node = ["node", str(ROOT / "src/main.mjs"), "--frames", "--size", a.size, "--fps", str(a.fps),
-            "--from", str(a.start), "--to", str(a.to)] + (["--hans"] if a.hans else [])
+            "--from", str(a.start), "--to", str(a.to)] + (["--hans"] if a.hans else []) + (["--film", a.film] if a.film else [])
     src = subprocess.Popen(node, stdout=subprocess.PIPE, bufsize=1 << 20)
     w, h, n = struct.unpack("<III", src.stdout.read(12))
     W, H = w * cw, h * chh

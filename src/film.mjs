@@ -262,10 +262,9 @@ export class Film {
     return cur;
   }
 
-  drawBand(s, r, t) {
-    const y = r.y + 1;
+  /** The right end of the lyric band (progress, time, beat); returns where it starts. */
+  bandStatus(s, r, y, t) {
     const W = r.w;
-    // progress & beat on the right
     const mm = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
     const tc = `${mm(Math.max(0, t))} / ${mm(DURATION)}`;
     const barW = Math.max(8, Math.min(24, Math.floor(W * 0.12)));
@@ -276,6 +275,12 @@ export class Film {
     s.text(rx + barW + 2, y, tc, P.dim);
     const pz = this.pulse(t, 5);
     s.text(W - 3, y, spinGlyph(t, 6), mix(P.dim, P.clay, pz));
+    return rx;
+  }
+
+  drawBand(s, r, t) {
+    const y = r.y + 1;
+    const rx = this.bandStatus(s, r, y, t);
 
     const line = this.currentLine(t);
     const x0 = 3;

@@ -111,6 +111,10 @@ def draw_frame(fr, F: Fonts):
                 for k, (qx, qy) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
                     if q[k] == "1":
                         d.rectangle([X + qx * hw, Y + qy * hh, X + qx * hw + hw - 1, Y + qy * hh + hh - 1], fill=f)
+            elif 0x2589 <= cp <= 0x258F:
+                d.rectangle([X, Y, X + max(1, round(cw * (0x2590 - cp) / 8)) - 1, Y + chh - 1], fill=f)
+            elif 0x2581 <= cp <= 0x2587:
+                d.rectangle([X, Y + chh - max(1, round(chh * (cp - 0x2580) / 8)), X + cw - 1, Y + chh - 1], fill=f)
             elif 0x1FB00 <= cp <= 0x1FB3B:
                 m = cp - 0x1FB00 + 1
                 m += 1 if m >= 21 else 0
