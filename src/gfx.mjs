@@ -270,14 +270,14 @@ export class Img {
   drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx } = {}) {
     const { c, a } = this.sample(cols * 2, rows * 3, ...crop);
     const pw = cols * 2;
-    const R = new Float32Array(6), G = new Float32Array(6), B = new Float32Array(6), L = new Float32Array(6);
+    const R = new Float32Array(6), G = new Float32Array(6), B = new Float32Array(6);
     for (let r = 0; r < rows; r++) {
       const sy = y + r;
       for (let col = 0; col < cols; col++) {
         const sx = x + col;
         if (!s.in(sx, sy)) continue;
         const under = s.bg[sy * s.w + sx];
-        let seen = 0, lo = 1, hi = 0, mean = 0;
+        let seen = 0;
         for (let k = 0; k < 6; k++) {
           const px = col * 2 + (k & 1), py = r * 3 + (k >> 1), i = py * pw + px;
           let cc = c[i], al = a[i] * alpha;
@@ -285,20 +285,8 @@ export class Img {
           if (al > 0.04) seen++;
           const m = al >= 0.98 ? cc : mix(under, cc, Math.max(0, al));
           R[k] = (m >> 16) & 255; G[k] = (m >> 8) & 255; B[k] = m & 255;
-          L[k] = (0.2126 * R[k] + 0.7152 * G[k] + 0.0722 * B[k]) / 255;
-          lo = Math.min(lo, L[k]); hi = Math.max(hi, L[k]); mean += L[k] / 6;
         }
-        if (!seen) continue;
-        let mask = 0;
-        if (hi - lo > 0.06) for (let k = 0; k < 6; k++) if (L[k] < mean) mask |= 1 << k;   // ink: the darker group
-        const avg = (sel) => {
-          let rr = 0, gg = 0, bb = 0, n = 0;
-          for (let k = 0; k < 6; k++) if (sel(k)) { rr += R[k]; gg += G[k]; bb += B[k]; n++; }
-          return n ? (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n) : under;
-        };
-        if (!mask) { s.put(sx, sy, 0x2588, avg(() => true), under); continue; }
-        const ink = avg((k) => mask & (1 << k)), paper = avg((k) => !(mask & (1 << k)));
-        s.put(sx, sy, sextantCp(mask), ink, paper);
+        if (seen) putCell6(s, sx, sy, R, G, B);
       }
     }
   }
@@ -321,6 +309,39 @@ export const mosaic = () => MOSAIC;
 const SUB = { half: [1, 2], quad: [2, 2], sext: [2, 3] };
 // quadrant mask (tl 1, tr 2, bl 4, br 8) -> code point
 const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2597, 0x259a, 0x2590, 0x259c, 0x2584, 0x2599, 0x259f, 0x2588];
+/**
+ * One character cell from the six colours of its 2×3 sub-cells (row-major; R, G, B arrays of 6). In 'sext'
+ * mode it becomes a sextant with two colours; terminals without sextants get quadrants or half-blocks made
+ * from the same samples.
+ */
+export function putCell6(s, x, y, R, G, B) {
+  const avg = (w) => {
+    let rr = 0, gg = 0, bb = 0, n = 0;
+    for (let k = 0; k < 6; k++) if (w[k]) { rr += R[k] * w[k]; gg += G[k] * w[k]; bb += B[k] * w[k]; n += w[k]; }
+    return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
+  };
+  const lum = (c) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
+  if (MOSAIC === 'half') {
+    const top = avg([2, 2, 1, 1, 0, 0]), bot = avg([0, 0, 1, 1, 2, 2]);
+    if (top === bot) s.put(x, y, 0x2588, top, top); else s.put(x, y, 0x2580, top, bot);
+    return;
+  }
+  const subs = MOSAIC === 'quad'
+    ? [avg([2, 0, 1, 0, 0, 0]), avg([0, 2, 0, 1, 0, 0]), avg([0, 0, 1, 0, 2, 0]), avg([0, 0, 0, 1, 0, 2])]
+    : [0, 1, 2, 3, 4, 5].map((k) => avg([0, 1, 2, 3, 4, 5].map((j) => (j === k ? 1 : 0))));
+  const L = subs.map(lum);
+  const lo = Math.min(...L), hi = Math.max(...L), mean = L.reduce((u, v) => u + v, 0) / L.length;
+  let mask = 0;
+  if (hi - lo > 10) L.forEach((v, k) => { if (v < mean) mask |= 1 << k; });
+  const pick = (on) => {
+    let rr = 0, gg = 0, bb = 0, n = 0;
+    subs.forEach((c, k) => { if (!!(mask & (1 << k)) === on) { rr += (c >> 16) & 255; gg += (c >> 8) & 255; bb += c & 255; n++; } });
+    return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
+  };
+  if (!mask) { const c = pick(false); s.put(x, y, 0x2588, c, c); return; }
+  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[mask] : sextantCp(mask), pick(true), pick(false));
+}
+
 /** Sextant mask (bit k = sub-cell k, row-major from top-left) -> code point. */
 export function sextantCp(m) {
   if (m === 0) return 32;

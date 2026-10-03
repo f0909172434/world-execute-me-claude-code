@@ -3,16 +3,64 @@
 // thoughts, what was compacted). At the foot, the lyric line and the context window filling up.
 import { P } from '../palette.mjs';
 import { Film } from '../film.mjs';
-import { KEEP, strWidth } from '../term.mjs';
+import { KEEP, strWidth, mix } from '../term.mjs';
 import { clamp } from '../gfx.mjs';
 
 const CONTEXT = 200000;
+
+/**
+ * The page at night: every colour keeps its hue but its lightness is turned over, so ivory paper becomes a warm
+ * dark and ink becomes light, while mid-tones (clay, sky, the red of the meter) stay much as they are.
+ */
+const nightCache = new Map();
+function nightOf(c) {
+  let v = nightCache.get(c);
+  if (v !== undefined) return v;
+  const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+  const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const to = 0.075 + (1 - L) * 0.85;
+  const d = (to - L) * 255;
+  const f = (x) => Math.max(0, Math.min(255, Math.round(x + d)));
+  v = (f(r) << 16) | (f(g) << 8) | f(b);
+  if (nightCache.size > 4096) nightCache.clear();
+  nightCache.set(c, v);
+  return v;
+}
+/** Evening: light colours sink towards a dim amber, dark ones barely move, so the ink keeps its contrast. */
+function duskGrade(s, k) {
+  const n = s.w * s.h;
+  const f = (c) => {
+    const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+    const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const m = 1 - k * 0.34 * L;                       // the lighter, the more it dims
+    return (Math.round(r * m * (1 + 0.04 * k)) << 16) | (Math.round(g * m * (1 - 0.03 * k)) << 8) | Math.round(b * m * (1 - 0.16 * k));
+  };
+  for (let i = 0; i < n; i++) { s.fg[i] = f(s.fg[i]); s.bg[i] = f(s.bg[i]); }
+}
+
+function nightGrade(s, k) {
+  const n = s.w * s.h;
+  for (let i = 0; i < n; i++) {
+    s.fg[i] = k >= 0.997 ? nightOf(s.fg[i]) : mix(s.fg[i], nightOf(s.fg[i]), k);
+    s.bg[i] = k >= 0.997 ? nightOf(s.bg[i]) : mix(s.bg[i], nightOf(s.bg[i]), k);
+  }
+}
 
 export class OwnFilm extends Film {
   constructor(opts) {
     super(opts);
     this.notes = [];            // marginalia: { a, b, draw }
     this.used = () => 0;        // tokens in the window at t
+    this.dusk = () => 0;        // evening light on the page (paper warms and dims, ink stays dark)
+    this.night = () => 0;       // 0 = the ivory page by day, 1 = the same page at night (a light switched off)
+  }
+
+  render(s, t) {
+    super.render(s, t);
+    t = Math.max(0, t);
+    const k = this.night(t), d = this.dusk(t) * (1 - k);
+    if (d > 0.003) duskGrade(s, d);
+    if (k > 0.003) nightGrade(s, k);
   }
 
   /** Draw in the margin from a to b; c.A(name) gives anchors the transcript reported this frame. */

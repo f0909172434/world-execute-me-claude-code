@@ -165,13 +165,18 @@ export class Session {
     const below = (lines.length ? 1 : 0) + (sp ? 2 : 0) + promptH + (showFooter ? 1 : 0);
     const room = Math.max(0, h - below);
     let yy = y;
-    let skipMarks = 0;
-    for (const l of lines) if (l && l.mark) skipMarks++;
-    const realLines = lines.length - skipMarks;
-    let todo = Math.min(room, realLines), first = lines.length;
-    for (let i = lines.length - 1, n = 0; i >= 0 && n < todo; i--) { first = i; if (!(lines[i] && lines[i].mark)) n++; }
+    // hooks.scroll(t): 0 shows the newest lines, 1 scrolls back until the first line is at the top
+    let end = lines.length, total = 0;
+    for (const l of lines) if (!(l && l.mark)) total++;
+    const back = this.hooks.scroll ? clamp(this.hooks.scroll(t)) : 0;
+    const scroll = Math.round(back * Math.max(0, total - room));
+    for (let n = 0; end > 0 && n < scroll;) { end--; if (!(lines[end] && lines[end].mark)) n++; }
+    let realLines = 0;
+    for (let i = 0; i < end; i++) if (!(lines[i] && lines[i].mark)) realLines++;
+    let todo = Math.min(room, realLines), first = end;
+    for (let i = end - 1, n = 0; i >= 0 && n < todo; i--) { first = i; if (!(lines[i] && lines[i].mark)) n++; }
     if (first > 0 && lines[first - 1] && lines[first - 1].mark) first--;
-    for (let i = first; i < lines.length; i++, yy++) {
+    for (let i = first; i < end; i++, yy++) {
       const l = lines[i];
       if (l && l.mark) { l.mark.onDraw(yy, x, t); yy--; continue; }
       if (!l) continue;
