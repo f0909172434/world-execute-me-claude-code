@@ -18,3 +18,6 @@ node_modules/
 
 # fonts downloaded by tools/fetch_fonts.sh (only the baked atlas is committed)
 tools/fonts/
+
+# rendered videos (they carry the song) and their descriptions
+video/

@@ -123,10 +123,13 @@ cd world-execute-me-claude-code
 ## 分享
 
 ```bash
-node src/main.mjs --cast world.execute-me.cast --size 160x45 --fps 24   # asciinema 錄影（無聲）
+python3 tools/render_video.py out.mp4                    # 1080p 影片，含你本機的音檔（約 1 分鐘）
+python3 tools/render_video.py out-4k.mp4 --cell 24x48    # 4K
+node src/main.mjs --cast world.execute-me.cast           # asciinema 錄影（無聲）
 ```
 
-可以用 `asciinema play` 播放，或用 [agg](https://github.com/asciinema/agg) 轉成 GIF 後再配上音軌。
+影片不是錄屏：每一格由程式按歌曲時間算出再編碼，畫面與音軌精確對齊（需要 ffmpeg 與
+`pip install -r tools/requirements.txt`）。影片含有原曲，請只依 Mili 的二創指引分享。
 依 [Mili 二創指引](https://projectmili.com/copyright-guidelines)：個人、非商業，並註明含 AI 生成內容。
 
 ## 署名與授權

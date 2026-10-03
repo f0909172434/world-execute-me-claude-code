@@ -51,6 +51,8 @@ function parseArgs(argv) {
     else if (k === '--quit-at-end') a.quitAtEnd = true;
     else if (k === '--cast') a.cast = v();
     else if (k === '--hans') a.hans = true;
+    else if (k === '--frames') a.frames = true;
+    else if (k === '--to') a.to = parseFloat(v());
     else if (k === '--fetch-lyrics') a.fetchLyrics = true;
     else if (k === '--truecolor') a.truecolor = true;
     else if (k === '--snap') a.snap = v();
@@ -253,6 +255,26 @@ function cast(args) {
   console.log(`${args.cast}: ${n} frames, ${w}x${h}, ${(fs.statSync(args.cast).size / 1e6).toFixed(1)} MB (play: asciinema play ${args.cast})`);
 }
 
+// ---------------------------------------------------------------- raw frames (tools/render_video.py reads these)
+
+function frames(args) {
+  const { film } = makeFilm(args);
+  const [w, h] = (args.size ?? '160x45').split('x').map(Number);
+  const fps = args.fps, to = args.to ?? DURATION;
+  const s = new Screen(w, h);
+  const n = Math.floor((to - args.from) * fps);
+  const head = Buffer.alloc(12);
+  head.writeUInt32LE(w, 0); head.writeUInt32LE(h, 4); head.writeUInt32LE(n, 8);
+  fs.writeSync(1, head);
+  for (let i = 0; i < n; i++) {
+    film.render(s, args.from + i / fps);
+    for (const a of [s.ch, s.fg, s.bg, s.at]) {
+      const b = Buffer.from(a.buffer, a.byteOffset, a.byteLength);
+      for (let o = 0; o < b.length;) o += fs.writeSync(1, b, o);
+    }
+  }
+}
+
 // ---------------------------------------------------------------- bench
 
 function bench(args) {
@@ -284,4 +306,5 @@ if (args.snap) snapshot(args);
 else if (args.bench) bench(args);
 else if (args.cast) cast(args);
 else if (args.fetchLyrics) fetchLyrics(args);
+else if (args.frames) frames(args);
 else live(args);
