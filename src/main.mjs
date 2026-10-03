@@ -109,7 +109,7 @@ async function live(args) {
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
-    player.stop();
+    player.close();
     out.write('\x1b[0m\x1b[?25h\x1b[?1049l');
     if (process.stdin.isTTY) try { process.stdin.setRawMode(false); } catch {}
   };
