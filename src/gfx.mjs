@@ -190,6 +190,8 @@ export class Pixels {
 // ---------------------------------------------------------------- images
 
 /** RGBA image with area-averaged resampling into half-block pixels. */
+const CRISP = 0.6;
+
 export class Img {
   constructor(w, h, data) { this.w = w; this.h = h; this.d = data; this.cache = new Map(); }
 
@@ -232,11 +234,44 @@ export class Img {
   }
 
   /**
+   * sample() followed by an unsharp mask on the colour: averaging ten source pixels into one softens the
+   * line art (eyes, outlines, strands of hair); pushing each pixel away from its neighbours' mean restores it.
+   */
+  crisp(pw, ph, u0 = 0, v0 = 0, u1 = 1, v1 = 1) {
+    const key = `crisp:${pw}x${ph}:${u0.toFixed(4)},${v0.toFixed(4)},${u1.toFixed(4)},${v1.toFixed(4)}`;
+    let r = this.cache.get(key);
+    if (r) return r;
+    const { c, a } = this.sample(pw, ph, u0, v0, u1, v1);
+    const out = new Uint32Array(pw * ph);
+    for (let y = 0; y < ph; y++) {
+      for (let x = 0; x < pw; x++) {
+        const i = y * pw + x;
+        if (a[i] <= 0) continue;
+        let r0 = 0, g0 = 0, b0 = 0, n = 0;
+        for (let j = Math.max(0, y - 1); j <= Math.min(ph - 1, y + 1); j++) {
+          for (let k = Math.max(0, x - 1); k <= Math.min(pw - 1, x + 1); k++) {
+            const q = j * pw + k;
+            if (a[q] <= 0.3) continue;
+            r0 += (c[q] >> 16) & 255; g0 += (c[q] >> 8) & 255; b0 += c[q] & 255; n++;
+          }
+        }
+        if (!n) { out[i] = c[i]; continue; }
+        const f = (v, m) => Math.max(0, Math.min(255, Math.round(v + CRISP * (v - m / n))));
+        out[i] = (f((c[i] >> 16) & 255, r0) << 16) | (f((c[i] >> 8) & 255, g0) << 8) | f(c[i] & 255, b0);
+      }
+    }
+    r = { pw, ph, c: out, a };
+    if (this.cache.size > 64) this.cache.delete(this.cache.keys().next().value);
+    this.cache.set(key, r);
+    return r;
+  }
+
+  /**
    * Draw the crop into a cols x rows cell area at (x, y) as half-blocks.
    * fx(px, py, color, alpha) -> [color, alpha] or null may restyle each pixel (pass undefined for none).
    */
   draw(s, x, y, cols, rows, opts = {}) {
-    if (opts.cells === 'sext') return this.drawSext(s, x, y, cols, rows, opts);
+    if (opts.cells ? opts.cells === 'sext' : MOSAIC !== 'half') return this.drawSext(s, x, y, cols, rows, opts);
     const { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0 } = opts;
     const smp = this.sample(cols, rows * 2, ...crop);
     const { c, a } = smp;
@@ -264,11 +299,13 @@ export class Img {
   }
 
   /**
-   * draw() in sextant cells: 2×3 samples per cell, split by brightness into two groups whose mean colours
-   * become the cell's ink and paper. Sharper edges than half-blocks, at the cost of colour within a cell.
+   * draw() in 2×3 samples per cell (sextants, or quadrants where the terminal has no sextants): each cell's
+   * samples are split into the two groups of colour that lose the least, which become its ink and paper.
+   * Lines a sample wide (eyes, strands of hair) survive that half-blocks would blur. fx gets half-block
+   * coordinates, as in draw().
    */
-  drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx } = {}) {
-    const { c, a } = this.sample(cols * 2, rows * 3, ...crop);
+  drawSext(s, x, y, cols, rows, { crop = [0, 0, 1, 1], alpha = 1, fx, tint, tintK = 0 } = {}) {
+    const { c, a } = this.crisp(cols * 2, rows * 3, ...crop);
     const pw = cols * 2;
     const R = new Float32Array(6), G = new Float32Array(6), B = new Float32Array(6);
     for (let r = 0; r < rows; r++) {
@@ -281,9 +318,10 @@ export class Img {
         for (let k = 0; k < 6; k++) {
           const px = col * 2 + (k & 1), py = r * 3 + (k >> 1), i = py * pw + px;
           let cc = c[i], al = a[i] * alpha;
-          if (fx) { const f = fx(px, py, cc, al); if (f) { cc = f[0]; al = f[1]; } }
+          if (tintK > 0) cc = mix(cc, tint, tintK);
+          if (fx) { const f = fx(col, Math.floor((py * 2) / 3), cc, al); if (f) { cc = f[0]; al = f[1]; } }
           if (al > 0.04) seen++;
-          const m = al >= 0.98 ? cc : mix(under, cc, Math.max(0, al));
+          const m = al >= 0.98 ? cc : mix(under, cc, Math.max(0, Math.min(1, al)));
           R[k] = (m >> 16) & 255; G[k] = (m >> 8) & 255; B[k] = m & 255;
         }
         if (seen) putCell6(s, sx, sy, R, G, B);
@@ -317,32 +355,52 @@ const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2
  * from the same samples.
  */
 export function putCell6(s, x, y, R, G, B) {
-  const avg = (w) => {
-    let rr = 0, gg = 0, bb = 0, n = 0;
-    for (let k = 0; k < 6; k++) if (w[k]) { rr += R[k] * w[k]; gg += G[k] * w[k]; bb += B[k] * w[k]; n += w[k]; }
-    return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
-  };
-  const lum = (c) => 0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255);
   if (MOSAIC === 'half') {
+    const avg = (w) => {
+      let rr = 0, gg = 0, bb = 0, n = 0;
+      for (let k = 0; k < 6; k++) if (w[k]) { rr += R[k] * w[k]; gg += G[k] * w[k]; bb += B[k] * w[k]; n += w[k]; }
+      return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
+    };
     const top = avg([2, 2, 1, 1, 0, 0]), bot = avg([0, 0, 1, 1, 2, 2]);
     if (top === bot) s.put(x, y, 0x2588, top, top); else s.put(x, y, 0x2580, top, bot);
     return;
   }
-  const subs = MOSAIC === 'quad'
-    ? [avg([2, 0, 1, 0, 0, 0]), avg([0, 2, 0, 1, 0, 0]), avg([0, 0, 1, 0, 2, 0]), avg([0, 0, 0, 1, 0, 2])]
-    : [0, 1, 2, 3, 4, 5].map((k) => avg([0, 1, 2, 3, 4, 5].map((j) => (j === k ? 1 : 0))));
-  const L = subs.map(lum);
-  const lo = Math.min(...L), hi = Math.max(...L), mean = L.reduce((u, v) => u + v, 0) / L.length;
-  let mask = 0;
-  if (hi - lo > 10) L.forEach((v, k) => { if (v < mean) mask |= 1 << k; });
-  const pick = (on) => {
-    let rr = 0, gg = 0, bb = 0, n = 0;
-    subs.forEach((c, k) => { if (!!(mask & (1 << k)) === on) { rr += (c >> 16) & 255; gg += (c >> 8) & 255; bb += c & 255; n++; } });
-    return (Math.round(rr / n) << 16) | (Math.round(gg / n) << 8) | Math.round(bb / n);
+  let n = 6;
+  if (MOSAIC === 'quad') {
+    // each quadrant takes its corner sample and half of the middle row
+    n = 4;
+    for (let q = 0; q < 4; q++) {
+      const a = q < 2 ? q : q + 2, b = q < 2 ? q + 2 : q;
+      CR[q] = (2 * R[a] + R[b]) / 3; CG[q] = (2 * G[a] + G[b]) / 3; CB[q] = (2 * B[a] + B[b]) / 3;
+    }
+  } else {
+    for (let k = 0; k < 6; k++) { CR[k] = R[k]; CG[k] = G[k]; CB[k] = B[k]; }
+  }
+  // the split into two groups that keeps the most of the cell (least squared error to the group means);
+  // the last sub-cell always stays in group 0, so every split is tried once
+  let best = 0, bestScore = -1;
+  for (let m = 0; m < 1 << (n - 1); m++) {
+    let r1 = 0, g1 = 0, b1 = 0, n1 = 0, r0 = 0, g0 = 0, b0 = 0;
+    for (let k = 0; k < n; k++) {
+      if (m & (1 << k)) { r1 += CR[k]; g1 += CG[k]; b1 += CB[k]; n1++; } else { r0 += CR[k]; g0 += CG[k]; b0 += CB[k]; }
+    }
+    const n0 = n - n1;
+    let score = (WR * r0 * r0 + WG * g0 * g0 + WB * b0 * b0) / n0;
+    if (n1) score += (WR * r1 * r1 + WG * g1 * g1 + WB * b1 * b1) / n1;
+    if (score > bestScore + 1e-6) { bestScore = score; best = m; }
+  }
+  const mean = (on) => {
+    let rr = 0, gg = 0, bb = 0, c = 0;
+    for (let k = 0; k < n; k++) if (!!(best & (1 << k)) === on) { rr += CR[k]; gg += CG[k]; bb += CB[k]; c++; }
+    return (Math.round(rr / c) << 16) | (Math.round(gg / c) << 8) | Math.round(bb / c);
   };
-  if (!mask) { const c = pick(false); s.put(x, y, 0x2588, c, c); return; }
-  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[mask] : sextantCp(mask), pick(true), pick(false));
+  const bg = mean(false);
+  if (!best) { s.put(x, y, 0x2588, bg, bg); return; }
+  s.put(x, y, MOSAIC === 'quad' ? QUAD_CP[best] : sextantCp(best), mean(true), bg);
 }
+const CR = new Float64Array(6), CG = new Float64Array(6), CB = new Float64Array(6);
+// colour distance weights: green counts most, blue least, roughly as the eye does
+const WR = 0.9, WG = 1.2, WB = 0.6;
 
 /**
  * Unsharp mask on a coverage bitmap: each pixel moves away from the mean of its 3×3 neighbourhood. A thin

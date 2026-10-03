@@ -874,7 +874,9 @@ function trainShot(film, a, b) {
       const yy = Math.floor(sweep * ph);
       for (let x = 0; x < pw; x++) px.set(x, yy, P.goldHi, 0.85);
     }
-    px.blit(s, xp, yp);
+    // fully denoised, she is drawn in the terminal's finest cells
+    if (stepsDone === SIGMA.length - 1 && sweep >= 1) img.draw(s, xp, yp, pw, pRows, { crop: FULL });
+    else px.blit(s, xp, yp);
     const bcol = mix(P.line, P.goldHi, flash * 0.9);
     box(s, xp - 1, yp - 1, pCols + 2, pRows + 2, bcol);
     const sigNow = stepsDone ? lerp(SIGMA[oldL], SIGMA[newL], sweep) : 1;
