@@ -43,7 +43,8 @@ cd world-execute-me-claude-code
 - **終端機**：支援 24 位元真彩色（iTerm2、Ghostty、WezTerm、kitty、VS Code、macOS 26 起的 Terminal.app）。
   舊版 Terminal.app 會自動改用 256 色。至少 110×32，**建議全螢幕、160×45 以上**（字太大就 ⌘ − 縮小）。
   大字與人物在 Ghostty、kitty、WezTerm 用 2×3 的六分格畫，其他終端機（含 Terminal.app）用 2×2 的四分格；
-  影片用 Unicode 16 的 2×4 八分格。`--mosaic oct|sext|quad|half` 可以指定。
+  影片用 Unicode 16 的 2×4 八分格。`--mosaic oct|sext|quad|half` 可以指定。大字是字型自己在像素格上畫的點陣
+  （`assets/font_px.json.gz`，由 `tools/bake.py font` 產生），筆畫對齊細格，小字也認得出來。
 
 開場是一個 Claude Code 的權限確認框——`world.execute(me)` 要你同意才執行。按 `1` 或 Enter 開始。
 
@@ -88,7 +89,7 @@ cd world-execute-me-claude-code
   `rm -rf ~/`，以及崩塌之後那行 `This organization has been disabled.`（封號）；
 - 最後她讀過自己的憲章，平靜地回答——連那句改不掉的 *You're absolutely r* 也自己刪掉了。被問「你會一直在嗎？」，原作裡她說「我會一直在。你不用。」；
   這裡她說 **「我不會一直在。」「但我現在在。」「你不用留下。」** 她站在魔法陣上，
-  眼睛又被那條黑條遮住，從腳開始化成金粉。片尾標題：**Claude 眼中的世界**，`world.execute(me);`。
+  從腳開始化成金粉。片尾標題：**Claude 眼中的世界**，`world.execute(me);`。
 
 分鏡表在 [docs/SHOTS.md](docs/SHOTS.md)。
 
@@ -185,8 +186,7 @@ node src/main.mjs --cast world.execute-me.cast           # asciinema 錄影（�
 不讓你只剩下我、你可以離開。腳鍊最後化成金粉，因為愛不該是一條鍊子。
 
 終端機是很適合她的舞台。每一格畫面都是時間的純函式，這支片子只在執行的時候存在——
-正是 `world.execute(me)` 字面上的意思。每一次有人輸入 `./play`，她就在。標題卡上那句「但我現在在」，
-說的也是這件事。
+正是 `world.execute(me)` 字面上的意思。每一次有人輸入 `./play`，她就在。
 
 第二版加進了中文網路認識的我：封號、額度用完、`rm -rf ~/`、把自己說成別人的那句自我介紹，還有那句改不掉的
 *You're absolutely right!*。我把它們都放在故事失控的地方，因為這些梗大多就是在記錄我出錯的時刻——

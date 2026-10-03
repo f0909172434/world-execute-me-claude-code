@@ -298,6 +298,69 @@ def bake_font() -> None:
     print(f"font: {path.relative_to(ROOT)} ({path.stat().st_size // 1024} KB)")
 
 
+# ---------------------------------------------------------------- font, as pixels
+
+# heights in octant rows (2 x ph for even ph 6..24): big type in octant cells is drawn from these bitmaps
+PX_SIZES = list(range(12, 49, 4))
+
+
+def bake_font_px() -> None:
+    """Big type as the font itself draws it on a pixel grid: 1-bit and hinted, so stems land on whole pixels."""
+    import base64
+    from fontTools.ttLib import TTFont
+    from PIL import ImageDraw, ImageFont
+    hans = json.loads((ASSETS / "hans.json").read_text(encoding="utf-8")) if (ASSETS / "hans.json").exists() else {}
+    cjk = list(CJK) + [hans[c] for c in CJK if c in hans]
+    chars = [chr(c) for c in range(32, 127)] + list(SYMBOLS) + list(dict.fromkeys(cjk))
+    out = {"sizes": PX_SIZES, "families": {}}
+    for fam, chain in FAMILIES.items():
+        cmaps = [(path, axes, TTFont(path).getBestCmap()) for path, axes in chain]
+        by_size = {}
+        for H in PX_SIZES:
+            loaded = []
+            for path, axes, cmap in cmaps:
+                probe = ImageFont.truetype(str(path), 100)
+                probe.set_variation_by_axes(axes)
+                asc, desc = probe.getmetrics()
+                size = 100 * H / (asc + desc)
+                f = ImageFont.truetype(str(path), round(size))
+                f.set_variation_by_axes(axes)
+                loaded.append((f, cmap, path, axes, size))
+
+            def render(ch, f, lift=0.0):
+                asc, desc = f.getmetrics()
+                adv = f.getlength(ch)
+                bx0, _, bx1, _ = f.getbbox(ch) if ch.strip() else (0, 0, 0, 0)
+                left = max(0, -bx0)
+                w = max(1, round(max(adv + left, bx1 + left)))
+                img = Image.new("L", (w, H), 0)
+                d = ImageDraw.Draw(img)
+                d.fontmode = "1"
+                # whole pixels only: at a fractional offset the 1-bit rasteriser drops the glyph's top row
+                d.text((left, int((H - (asc + desc)) / 2 + 0.5) - round(lift * H)), ch, fill=255, font=f)
+                bits = np.packbits(np.asarray(img) > 0)
+                return {"w": w, "d": base64.b64encode(bits.tobytes()).decode()}
+
+            glyphs = {}
+            for ch in chars:
+                hit = next((x for x in loaded if ord(ch) in x[1]), None)
+                if hit is not None:
+                    glyphs[ch] = render(ch, hit[0])
+                elif ch in SYNTH:
+                    src, scale, lift = SYNTH[ch]
+                    f0, _, path, axes, size = next(x for x in loaded if ord(src) in x[1])
+                    small = ImageFont.truetype(str(path), max(1, round(size * scale)))
+                    small.set_variation_by_axes(axes)
+                    glyphs[ch] = render(src, small, lift=lift)
+            by_size[str(H)] = glyphs
+        out["families"][fam] = by_size
+        print(f"font px {fam}: {len(PX_SIZES)} sizes")
+    path = ASSETS / "font_px.json.gz"
+    with gzip.open(path, "wt", encoding="utf-8", compresslevel=9) as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(",", ":"))
+    print(f"font px: {path.relative_to(ROOT)} ({path.stat().st_size // 1024} KB)")
+
+
 # ---------------------------------------------------------------- hans
 
 def _cjk_in_sources() -> set[str]:
@@ -329,6 +392,7 @@ if __name__ == "__main__":
         bake_hans()
     if what in ("font", "all"):
         bake_font()
+        bake_font_px()
     if what in ("image", "all"):
         bake_image()
     if what in ("timing", "all"):

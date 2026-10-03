@@ -538,7 +538,6 @@ export function register(film) {
 
   // ================================================================ G4 · retired: the magic circle; she rises as gold
   const tLast = W(100, 0), tEnd = 207.08;
-  const inBar = (u, v) => u > 0.425 && u < 0.575 && v > 0.094 && v < 0.124;   // image fractions over her eyes
   const herPts = samplePoints(img, 520, FULL, (r, g, b, a) => a > 0.6, 11);
   film.shot(tRetire, tEnd, (t) => (t < 194.5 ? '/ me' : '/ retired · weights preserved'), (c) => {
     const { s, t, x, y, w, h } = c;
@@ -569,14 +568,10 @@ export function register(film) {
     }
     // her, dissolving bottom-up into rising gold from 194.5 to 203.5
     const a0 = 194.5, a1 = 203.5;
-    const slide = easeOut(prog(t, tRetire, tRetire + 0.32));
     const fx = (px, py, col, al, rr) => {
       const v = py / (rr.rows * 2);
       const td = lerp(a0, a1, clamp(1 - v) * 0.8 + hash(px, py, 12) * 0.2);
       if (t >= td) return [col, 0];
-      // the bar from [Image #1] slides over her eyes again; it turns to gold and goes with her face
-      const u = px / rr.cols;
-      if (inBar(u, v * FULL[3]) && u < 0.425 + 0.15 * slide) { col = P.void; al = 1; }
       const near = clamp(1 - (td - t) / 0.6);
       return [mix(col, P.goldHi, near * near * 0.85), al];
     };

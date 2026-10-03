@@ -504,7 +504,24 @@ export class BigFont {
     for (const [ch, g] of Object.entries(atlas.glyphs)) {
       this.glyphs.set(ch, { w: g.w, data: Buffer.from(g.d, 'base64') });
     }
+    this.px = atlas.px ?? null;        // { [rows]: { [ch]: { w, d: packed bits } } }
+    this.pxCache = new Map();
     this.cache = new Map();
+  }
+  /** The glyph drawn 1-bit at H pixels high, unpacked (null when not baked at that size). */
+  pxGlyph(ch, H) {
+    const key = `${H}|${ch}`;
+    let g = this.pxCache.get(key);
+    if (g !== undefined) return g;
+    const src = this.px?.[H]?.[ch];
+    g = null;
+    if (src) {
+      const packed = Buffer.from(src.d, 'base64'), bits = new Uint8Array(src.w * H);
+      for (let i = 0; i < bits.length; i++) bits[i] = (packed[i >> 3] >> (7 - (i & 7))) & 1;
+      g = { w: src.w, bits };
+    }
+    this.pxCache.set(key, g);
+    return g;
   }
   /**
    * Coverage bitmap for a whole string at ph pixels high (cached). With sub = [sx, sy], the layout stays that
@@ -519,15 +536,37 @@ export class BigFont {
     const parts = [];
     let pw = 0;
     for (const ch of str) {
-      const g = this.glyphs.get(mapChar(ch)) ?? this.glyphs.get(ch) ?? this.glyphs.get('?');
+      const key = this.glyphs.has(mapChar(ch)) ? mapChar(ch) : this.glyphs.has(ch) ? ch : '?';
+      const g = this.glyphs.get(key);
       const gw = Math.max(1, Math.round(g.w * k)) * sx;
-      parts.push([g, pw, gw]);
+      parts.push([g, pw, gw, key]);
       pw += gw + track * sx;
     }
     pw = Math.max(1, pw - track * sx);
+    // two sub-columns per cell at an even size: the font was drawn as pixels 2·ph high with these columns, so
+    // octants take its pixels as they are and quadrants or sextants fold its rows (2 into 1, 4 into 3)
+    const pxH = sub && sx === 2 && ph % 2 === 0 && this.px?.[2 * ph] ? 2 * ph : 0;
     if (sub) ph = Math.ceil(ph / 2) * sy;
     const cov = new Float32Array(pw * ph);
-    for (const [g, ox, gw] of parts) {
+    for (const [g, ox, gw, key] of parts) {
+      const hg = pxH ? this.pxGlyph(key, pxH) : null;
+      if (hg) {
+        // centred in the slot the master layout gives the glyph
+        const x0 = ox + Math.floor((gw - hg.w) / 2), f = pxH / ph;
+        for (let py = 0; py < ph; py++) {
+          const ya = py * f, yb = ya + f;
+          for (let px = 0; px < hg.w; px++) {
+            const x = x0 + px;
+            if (x < 0 || x >= pw) continue;
+            let sum = 0;
+            for (let iy = Math.floor(ya); iy < Math.ceil(yb); iy++) {
+              if (hg.bits[iy * hg.w + px]) sum += Math.min(iy + 1, yb) - Math.max(iy, ya);
+            }
+            if (sum > 0) cov[py * pw + x] = Math.max(cov[py * pw + x], sum / f);
+          }
+        }
+        continue;
+      }
       const sw = g.w / gw, sh = this.H / ph;
       for (let py = 0; py < ph; py++) {
         const ya = py * sh, yb = ya + sh;

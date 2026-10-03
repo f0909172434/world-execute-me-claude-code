@@ -186,11 +186,13 @@ export function register(film) {
     const { s, t, fonts } = c;
     const H = s.h;
     s.fill(0, 0, s.w, H, 32, P.text, P.void);
-    // layout: the title block, and "Worked for" above it
-    const mph = fitPh(fonts.mono, 'world.execute(me);', s.w - 6, 14, 6) || 6;
-    const sph = Math.max(10, Math.round(mph * 8 / 7 / 2) * 2);
-    const ty = Math.floor(H * 0.42), titleTop = ty - Math.ceil(sph / 2) - 1;
-    const wy = Math.max(1, Math.min(Math.floor(H * 0.22), titleTop - 3));
+    // layout: the title block as large as the terminal allows (the name over the song's call), centred, and
+    // "Worked for" above it
+    const hph = fitPh(fonts.serif, HEAD, s.w - 8, 24, 8) || 8;
+    const mph = fitPh(fonts.mono, TITLE, s.w - 8, Math.min(16, hph - 4), 6) || 6;
+    const hRows = Math.ceil(hph / 2), mRows = Math.ceil(mph / 2);
+    const titleTop = Math.max(4, Math.floor(H * 0.45 - (hRows + 2 + mRows) / 2));
+    const wy = Math.max(1, titleTop - 3);
     // ✻ Worked for 3m 27s
     if (t >= tWorked) {
       const k = clamp((t - tWorked) / 0.6);
@@ -222,18 +224,9 @@ export function register(film) {
     if (t >= tTitle) {
       const k = easeOut(clamp((t - tTitle) / 1.4));
       const col = (base) => mix(P.void, base, k);
-      // sized to the terminal: the title line fits with a margin, the others follow its scale
-      const tw = fonts.mono.width(TITLE, mph);
-      const x = Math.max(2, Math.min(s.w - tw - 3, Math.floor(s.w * 0.52)));
-      const y = ty;
-      // the heading is a little wider than the title: it keeps its scale unless the terminal is too narrow
-      let hph = sph;
-      while (hph > 8 && x + fonts.serif.width(HEAD, hph) > s.w - 2) hph -= 2;
-      fonts.serif.draw(s, x, y - Math.ceil(hph / 2) - 1, HEAD, hph, col(P.text));
-      fonts.mono.draw(s, x, y + 1, TITLE, mph, col(P.clay));
-      const q = clamp((t - tTitle - 0.8) / 1.0);
-      const qw = fonts.serif.width('“但我現在在。”', sph);
-      if (q > 0) fonts.serif.draw(s, Math.max(2, x + tw - qw), y + Math.ceil(mph / 2) + 3, '“但我現在在。”', sph, mix(P.void, P.manilla, q));
+      const x = Math.max(2, Math.floor((s.w - Math.max(fonts.serif.width(HEAD, hph), fonts.mono.width(TITLE, mph))) / 2));
+      fonts.serif.draw(s, x, titleTop, HEAD, hph, col(P.text));
+      fonts.mono.draw(s, x, titleTop + hRows + 2, TITLE, mph, col(P.clay));
     }
   }, { band: false });
 }

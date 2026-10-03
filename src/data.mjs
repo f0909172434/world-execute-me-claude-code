@@ -122,8 +122,13 @@ export function loadPortrait() {
 
 export function loadFonts() {
   const atlas = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(ASSETS, 'font.json.gz'))).toString('utf8'));
+  // the same glyphs as the font draws them on a pixel grid, for octant cells (tools/bake.py font)
+  const pxPath = path.join(ASSETS, 'font_px.json.gz');
+  const px = fs.existsSync(pxPath) ? JSON.parse(zlib.gunzipSync(fs.readFileSync(pxPath)).toString('utf8')) : null;
   const out = {};
-  for (const [name, glyphs] of Object.entries(atlas.families)) out[name] = new BigFont({ height: atlas.height, glyphs });
+  for (const [name, glyphs] of Object.entries(atlas.families)) {
+    out[name] = new BigFont({ height: atlas.height, glyphs, px: px?.families[name] });
+  }
   return out;
 }
 
