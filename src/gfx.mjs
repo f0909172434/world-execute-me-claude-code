@@ -268,6 +268,26 @@ export class Img {
  * Glyph atlas baked from real fonts (assets/font.json): coverage bitmaps at a fixed master height.
  * draw() scales a string to `ph` half-block pixels high.
  */
+// ---------------------------------------------------------------- mosaic cells for big type
+// How big type is cut into character cells. 'half': ▀▄ halves, two independent colours (1×2 per cell).
+// 'quad': quadrant blocks (2×2). 'sext': sextants from Symbols for Legacy Computing (2×3), the finest a
+// terminal can draw solidly. quad and sext keep two colours per cell: the inked sub-cells take the mean
+// coverage of the ink, the rest the mean of what is left, so edges still fade.
+let MOSAIC = 'half';
+export function setMosaic(m) { MOSAIC = m; }
+export const mosaic = () => MOSAIC;
+const SUB = { half: [1, 2], quad: [2, 2], sext: [2, 3] };
+// quadrant mask (tl 1, tr 2, bl 4, br 8) -> code point
+const QUAD_CP = [32, 0x2598, 0x259d, 0x2580, 0x2596, 0x258c, 0x259e, 0x259b, 0x2597, 0x259a, 0x2590, 0x259c, 0x2584, 0x2599, 0x259f, 0x2588];
+/** Sextant mask (bit k = sub-cell k, row-major from top-left) -> code point. */
+export function sextantCp(m) {
+  if (m === 0) return 32;
+  if (m === 63) return 0x2588;
+  if (m === 21) return 0x258c;
+  if (m === 42) return 0x2590;
+  return 0x1fb00 + m - 1 - (m > 21 ? 1 : 0) - (m > 42 ? 1 : 0);
+}
+
 export class BigFont {
   constructor(atlas) {
     this.H = atlas.height;
@@ -277,21 +297,26 @@ export class BigFont {
     }
     this.cache = new Map();
   }
-  /** Coverage bitmap for a whole string at ph pixels high (cached). */
-  raster(str, ph, track = 0) {
-    const key = `${str}|${ph}|${track}`;
+  /**
+   * Coverage bitmap for a whole string at ph pixels high (cached). With sub = [sx, sy], the layout stays that
+   * of the plain raster (one pixel per cell column) but every cell is sampled sx × sy times, ph/2·sy rows high.
+   */
+  raster(str, ph, track = 0, sub = null) {
+    const key = `${str}|${ph}|${track}|${sub}`;
     let r = this.cache.get(key);
     if (r) return r;
     const k = ph / this.H;
+    const [sx, sy] = sub ?? [1, 1];
     const parts = [];
     let pw = 0;
     for (const ch of str) {
       const g = this.glyphs.get(mapChar(ch)) ?? this.glyphs.get(ch) ?? this.glyphs.get('?');
-      const gw = Math.max(1, Math.round(g.w * k));
+      const gw = Math.max(1, Math.round(g.w * k)) * sx;
       parts.push([g, pw, gw]);
-      pw += gw + track;
+      pw += gw + track * sx;
     }
-    pw = Math.max(1, pw - track);
+    pw = Math.max(1, pw - track * sx);
+    if (sub) ph = Math.ceil(ph / 2) * sy;
     const cov = new Float32Array(pw * ph);
     for (const [g, ox, gw] of parts) {
       const sw = g.w / gw, sh = this.H / ph;
@@ -316,12 +341,15 @@ export class BigFont {
     this.cache.set(key, r);
     return r;
   }
+  /** Width in cells (the same in every mosaic mode). */
   width(str, ph, track = 0) { return this.raster(str, ph, track).pw; }
   /**
    * Draw at cell (x, y) with height ph pixels (ph/2 rows). color: number or fn(px, py, cov) -> colour.
    * reveal: 0..1 fraction of columns shown (left to right).
    */
-  draw(s, x, y, str, ph, color, { track = 0, alpha = 1, reveal = 1, gamma = 0.8 } = {}) {
+  draw(s, x, y, str, ph, color, opts = {}) {
+    if (MOSAIC !== 'half') return this.drawMosaic(s, x, y, str, ph, color, opts);
+    const { track = 0, alpha = 1, reveal = 1, gamma = 0.8 } = opts;
     const { pw, cov } = this.raster(str, ph, track);
     const rows = Math.ceil(ph / 2), shown = Math.round(pw * reveal);
     for (let r = 0; r < rows; r++) {
@@ -342,6 +370,45 @@ export class BigFont {
       }
     }
     return pw;
+  }
+
+  /** draw() in quadrant or sextant cells: the same footprint (pw cells × ph/2 rows), finer edges. */
+  drawMosaic(s, x, y, str, ph, color, { track = 0, alpha = 1, reveal = 1, gamma = 0.8 } = {}) {
+    const [sx, sy] = SUB[MOSAIC];
+    const cells = this.raster(str, ph, track).pw, rows = Math.ceil(ph / 2);
+    // sub-pixels are (cell w / sx) × (cell h / sy) with cells twice as tall as wide
+    const { pw, cov } = this.raster(str, ph, track, SUB[MOSAIC]);
+    const n = sx * sy, v = new Float32Array(n), shown = Math.round(cells * reveal);
+    for (let r = 0; r < rows; r++) {
+      const cy = y + r;
+      for (let c = 0; c < shown; c++) {
+        const cx = x + c;
+        if (!s.in(cx, cy)) continue;
+        let mx = 0, mn = 1;
+        for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) {
+          const px = c * sx + i, py = r * sy + j;
+          const val = px < pw ? (cov[py * pw + px] ?? 0) : 0;
+          v[j * sx + i] = val;
+          if (val > mx) mx = val;
+          if (val < mn) mn = val;
+        }
+        if (mx < 0.04) continue;
+        const under = s.bg[cy * s.w + cx];
+        const fc = typeof color === 'function' ? color(c, 2 * r, mx) : color;
+        const thr = (mx + mn) / 2;
+        let mask = 0, inkSum = 0, inkN = 0, offSum = 0;
+        for (let k = 0; k < n; k++) {
+          if (mx - mn > 0.12 && v[k] >= thr) { mask |= 1 << k; inkSum += v[k]; inkN++; } else offSum += v[k];
+        }
+        const ink = inkN ? inkSum / inkN : mx, off = inkN < n ? offSum / (n - inkN) : 0;
+        if (!inkN) { mask = (1 << n) - 1; }
+        const fg = mix(under, fc, Math.min(1, (inkN ? ink : (inkSum + offSum) / n) ** gamma * alpha));
+        const bg = mix(under, fc, Math.min(1, off ** gamma * alpha));
+        const cp = MOSAIC === 'quad' ? QUAD_CP[mask] : sextantCp(mask);
+        s.put(cx, cy, cp === 32 ? 0x2588 : cp, fg, inkN && inkN < n ? bg : under);
+      }
+    }
+    return cells;
   }
 }
 

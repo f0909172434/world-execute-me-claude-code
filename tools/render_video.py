@@ -73,6 +73,15 @@ class Glyphs:
             for k, (qx, qy) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
                 if QUAD[cp][k] == "1":
                     a[qy * h2:(qy + 1) * h2 if qy == 0 else ch, qx * w2:(qx + 1) * w2 if qx == 0 else cw] = 1
+        elif 0x1FB00 <= cp <= 0x1FB3B:                  # sextants: 2 x 3
+            m = cp - 0x1FB00 + 1
+            m += 1 if m >= 21 else 0
+            m += 1 if m >= 42 else 0
+            ys = [round(ch * k / 3) for k in range(4)]
+            for k in range(6):
+                if m & (1 << k):
+                    qx, qy = k % 2, k // 2
+                    a[ys[qy]:ys[qy + 1], (0 if qx == 0 else w2):(w2 if qx == 0 else cw)] = 1
         elif cp in (0x2591, 0x2592, 0x2593):
             a[:] = {0x2591: 0.25, 0x2592: 0.5, 0x2593: 0.75}[cp]
         elif 0x2800 <= cp <= 0x28FF:
