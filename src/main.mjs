@@ -10,6 +10,7 @@ import { ROOT, findFile, SONG_NAMES, LRC_NAMES, loadLyrics, loadFeatures, loadPo
 import { Film, DURATION } from './film.mjs';
 import { build } from './script.mjs';
 import * as cc from './cc.mjs';
+import { setMosaic } from './gfx.mjs';
 
 const HELP = `world.execute(me); — Claude Code edition
 
@@ -22,6 +23,7 @@ usage: node src/main.mjs [options]        (or ./play)
   --offset MS       shift the picture against the sound (+ = picture later)
   --player NAME     afplay | ffplay | mpv
   --256             256-colour mode (terminals without truecolor)
+  --mosaic M        big type in half | quad | sext cells (default: sext where the terminal draws sextants, else quad)
   --hans            简体中文 dialogue (default: 繁體)
   --fetch-lyrics    download the synced lyrics the film is timed on (LRCLIB entry 36914646)
                     to world.execute(me).lrc; an existing file is never replaced
@@ -46,6 +48,7 @@ function parseArgs(argv) {
     else if (k === '--offset') a.offset = parseFloat(v()) / 1000;
     else if (k === '--player') a.player = v();
     else if (k === '--256') a.c256 = true;
+    else if (k === '--mosaic') a.mosaic = v();
     else if (k === '--fps') a.fps = parseFloat(v());
     else if (k === '-y' || k === '--yes') a.yes = true;
     else if (k === '--quit-at-end') a.quitAtEnd = true;
@@ -65,8 +68,17 @@ function parseArgs(argv) {
   return a;
 }
 
+/** Sextants where the terminal draws them itself; quadrants (in every common font) elsewhere. */
+function terminalMosaic() {
+  const tp = process.env.TERM_PROGRAM || '', term = process.env.TERM || '';
+  if (/^(ghostty|WezTerm)$/i.test(tp) || /kitty|ghostty|wezterm|foot/i.test(term) || process.env.WT_SESSION) return 'sext';
+  return 'quad';
+}
+
 export function makeFilm(opts = {}) {
   if (opts.hans) setCharMap(loadHans());
+  // offline output (snapshots, video frames) is drawn by our own rasterisers, which draw sextants
+  setMosaic(opts.mosaic ?? (opts.terminal ? terminalMosaic() : 'sext'));
   const lrc = opts.lrc ?? findFile(LRC_NAMES);
   const lyrics = loadLyrics(lrc);
   const film = new Film({ lyrics, features: loadFeatures(), portrait: loadPortrait(), fonts: loadFonts() });
@@ -97,7 +109,7 @@ function snapshot(args) {
 async function live(args) {
   const out = process.stdout;
   if (!out.isTTY) { process.stderr.write('world.execute(me): run this in a terminal.\n'); process.exit(1); }
-  const { film, lrc, lyrics } = makeFilm(args);
+  const { film, lrc, lyrics } = makeFilm({ ...args, terminal: true });
   const song = args.audio ? (args.audioFile ?? findFile(SONG_NAMES)) : null;
   const others = SONG_NAMES.map((n) => findFile([n])).filter((f) => f && f !== song);
   const player = new Player(song, { offset: -args.offset, prefer: args.player, fallbacks: args.audioFile ? [] : others });
@@ -237,7 +249,7 @@ async function fetchLyrics(args) {
 // ---------------------------------------------------------------- asciinema
 
 function cast(args) {
-  const { film } = makeFilm(args);
+  const { film } = makeFilm({ ...args, mosaic: args.mosaic ?? 'quad' });
   const [w, h] = (args.size ?? '160x45').split('x').map(Number);
   const fps = Math.min(args.fps, 30);
   const s = new Screen(w, h);

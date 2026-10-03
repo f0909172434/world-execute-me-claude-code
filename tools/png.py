@@ -111,6 +111,22 @@ def draw_frame(fr, F: Fonts):
                 for k, (qx, qy) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
                     if q[k] == "1":
                         d.rectangle([X + qx * hw, Y + qy * hh, X + qx * hw + hw - 1, Y + qy * hh + hh - 1], fill=f)
+            elif 0x2589 <= cp <= 0x258F:
+                d.rectangle([X, Y, X + max(1, round(cw * (0x2590 - cp) / 8)) - 1, Y + chh - 1], fill=f)
+            elif 0x2581 <= cp <= 0x2587:
+                d.rectangle([X, Y + chh - max(1, round(chh * (cp - 0x2580) / 8)), X + cw - 1, Y + chh - 1], fill=f)
+            elif 0x1FB00 <= cp <= 0x1FB3B:
+                m = cp - 0x1FB00 + 1
+                m += 1 if m >= 21 else 0
+                m += 1 if m >= 42 else 0
+                ys = [round(chh * k / 3) for k in range(4)]
+                hw = cw // 2
+                for k in range(6):
+                    if m & (1 << k):
+                        qx, qy = k % 2, k // 2
+                        x0 = X if qx == 0 else X + hw
+                        x1 = X + hw - 1 if qx == 0 else X + cw - 1
+                        d.rectangle([x0, Y + ys[qy], x1, Y + ys[qy + 1] - 1], fill=f)
             elif cp in (0x2591, 0x2592, 0x2593):
                 k = {0x2591: 0.25, 0x2592: 0.5, 0x2593: 0.75}[cp]
                 c2 = tuple(int(bb + (v - bb) * k) for v, bb in zip(f, b))
