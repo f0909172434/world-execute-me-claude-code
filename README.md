@@ -25,7 +25,7 @@
 ## 執行
 
 ```bash
-git clone https://github.com/f0909172434/world-execute-me-claude-code.git
+git clone https://github.com/Chih-Kai-Wang/world-execute-me-claude-code.git
 cd world-execute-me-claude-code
 ./play --fetch-lyrics      # 下載同步歌詞（只需一次）
 ./play

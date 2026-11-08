@@ -30,7 +30,7 @@
 
 - **檔案**：`assets/src/claude-girl.webp`，以及由它衍生的 `assets/claude.rgba.gz`（去背、縮放）、
   `docs/preview.png` 與影片中她的所有形象。
-- **作者**：Chih-Kai Wang（[@f0909172434](https://github.com/f0909172434)），以 AI 生成的 Claude 擬人二創圖。
+- **作者**：Chih-Kai Wang（[@Chih-Kai-Wang](https://github.com/Chih-Kai-Wang)），以 AI 生成的 Claude 擬人二創圖。
 - **授權**：[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)，全文見
   [LICENSES/CC-BY-NC-SA-4.0.txt](LICENSES/CC-BY-NC-SA-4.0.txt)。使用時請署名並註明改動、不得商用，
   改編作品以相同授權分享。此授權不涉及 Claude、Claude Code 的商標權利。
